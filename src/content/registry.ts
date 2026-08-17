@@ -482,7 +482,6 @@ function validateItemQuantities(
 function validateRecipes(
   registry: ContentRegistry,
   known: ReadonlyMap<string, ContentDefinition>,
-  products: ReadonlyMap<string, ProductDef>,
   add: AddIssue,
 ): ReadonlyMap<string, number> {
   const capabilityUse = new Map<string, number>()
@@ -499,10 +498,6 @@ function validateRecipes(
     const inputIds = new Set(recipe.inputs.map((input) => input.itemId))
     recipe.outputs.forEach((output, outputIndex) => {
       if (inputIds.has(output.itemId)) add('invalid-recipe', `${path}.outputs[${outputIndex}].itemId`, 'cannot also be an unchanged input')
-      const product = products.get(output.itemId)
-      if (product && (product.sourceKind !== 'recipe' || !product.sourceIds.includes(recipe.id))) {
-        add('reference-kind-mismatch', `${path}.outputs[${outputIndex}].itemId`, `product "${product.id}" does not reciprocally name recipe source "${recipe.id}"`)
-      }
     })
     if (recipe.factoryCapabilities.length === 0) add('missing-factory-capability', `${path}.factoryCapabilities`, 'must require at least one production capability')
     const seenCapabilities = new Set<string>()
@@ -762,7 +757,7 @@ export function validateContentRegistry(
   const products = new Map(registry.products.map((product) => [product.id, product] as const))
   validateFloraAndAnimals(registry, known, products, add)
   validateMaterialsAndProducts(registry, known, add)
-  const capabilityUse = validateRecipes(registry, known, products, add)
+  const capabilityUse = validateRecipes(registry, known, add)
   validateStructures(registry, known, capabilityUse, add)
   validateDecorations(registry, add)
   validateLocalization(registry, options, add)

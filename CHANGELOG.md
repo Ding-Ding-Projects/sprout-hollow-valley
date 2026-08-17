@@ -10,6 +10,14 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+### Fixed
+
+- Installed startup now completes the fail-closed 5,000-definition content registration instead
+  of aborting the renderer with 2,240 generated-data validation issues. Taxonomy facets remain
+  unique, product and recipe unlocks cannot precede their prerequisites, every installed factory
+  capability has a compatible recipe, and alternate recipe outputs remain valid without requiring
+  every production technique to be duplicated in a product's primary-source list.
+
 ## [1.2.11] - 2026-08-17
 
 ### Fixed

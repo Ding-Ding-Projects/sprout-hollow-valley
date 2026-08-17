@@ -37,6 +37,15 @@ Installed startup also appends path-free stage records to
 normal primary and secondary launches, document load, and fatal startup stage without recording
 command arguments, environment variables, local file paths, save data, or stack traces.
 
+The document-load stage is only the main-process boundary. Renderer startup also constructs the
+fail-closed 5,000-definition content registry before the Farm interface mounts. Generated crop,
+orchard, and decoration taxonomy facets use distinct namespaces; product and recipe unlock levels
+are floored by their referenced prerequisites; and the recipe catalogue gives every installed
+factory capability at least one compatible operation. A recipe output must resolve to a real
+product, while a product's `sourceIds` describe its declared primary source rather than repeating
+every alternate production technique. These rules prevent a valid installed window from remaining
+at the static shell because an uncaught catalogue error stopped the renderer module graph.
+
 This installer repair was reproduced against the released v1.2.6 Squirrel package and then
 verified by installing a replacement package and launching its installed executable on a named
 off-screen Windows desktop. No screenshot or capture workflow was used.

@@ -130,16 +130,23 @@ it does not claim that a command has passed in the current foundation update.
 | `npm run build:main` | Compile the Electron main and preload processes |
 | `npm run build:renderer` | Build the application renderer |
 | `npm run build:site` | Build the public website |
+| `npm run build:icon` | Regenerate the multi-resolution Windows icon from its committed master |
 | `npm run build` | Run the repository's complete application build script |
 | `npm run package` | Build and create unsigned Squirrel.Windows release artifacts in `release/` |
 
 The project is Windows-only. There is no supported macOS or Linux package. Release artifacts
 are unsigned, so Windows may display an unknown-publisher or SmartScreen warning.
 
+Windows packaging regenerates `assets/branding/sprout-hollow-valley.ico` from the committed
+alpha master before the application build. The deterministic generator embeds PNG-compressed
+16, 20, 24, 32, 40, 48, 64, 96, 128, and 256 pixel frames for Windows shell sizes. The master
+PNG is the source of truth; do not edit the generated ICO by hand.
+
 ## Repository map
 
 ```text
 electron/                    Electron main process, preload boundary, and Windows identity
+assets/branding/             Original application mark, source master, and generated Windows icon
 src/shell/                   Application-shell state, language, navigation, and UI foundation
 site/                        Responsive public website
 docs/VALLEY-PRODUCT.md       Third-person 3D product contract

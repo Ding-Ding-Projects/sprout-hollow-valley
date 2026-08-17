@@ -19,11 +19,12 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "build:site": "vite build --config vite.site.config.ts",
+    "build:icon": "node scripts/build-app-icon.mjs",
     "build": "npm run typecheck && npm run build:main && npm run build:renderer",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.main.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --win squirrel --publish never",
+    "package": "npm run build:icon && npm run build && electron-builder --win squirrel --publish never",
     "shots": "node scripts/render-shots.mjs",
     "count": "node scripts/count-lines.mjs",
     "check:build": "node scripts/check-build-config.mjs",
@@ -35,6 +36,7 @@
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-builder-squirrel-windows": "^26.15.3",
+    "sharp": "^0.35.3",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
@@ -52,10 +54,11 @@
     ],
     "win": {
       "executableName": "SproutHollowValley",
+      "icon": "assets/branding/sprout-hollow-valley.ico",
       "target": [
         "squirrel"
       ],
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "signExecutable": false,
       "verifyUpdateCodeSignature": false
     },

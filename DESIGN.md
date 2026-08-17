@@ -127,7 +127,7 @@ Dense tables gain a labelled card or scroll-region alternative rather than shrin
 Controls wrap by logical groups. At 200% zoom, all tasks remain available without hidden
 content or overlapping controls. Safe areas and window controls remain clear at every size.
 
-## 3. Application shell and website
+## 3. Application shell and non-playable website
 
 The Windows shell uses a frameless window with an accessible custom title bar, persistent
 tabs, grouped navigation, searchable settings, non-blocking notifications, command palette,
@@ -135,10 +135,21 @@ offline documentation, history, appearance editing, and explicit destructive con
 Native HTML elements and truthful accessibility semantics are preferred to simulated
 controls.
 
+The playable Sprout Hollow Valley experience exists only inside the Windows desktop Electron
+application. The public website must not embed, stream, emulate, or imitate gameplay; provide
+a browser-playable farm; create browser game saves; or present decorative farm controls as if
+they operated the game.
+
 The website is the public entrance to the same product identity. It carries the farm-themed
-tokens, language controls, responsive navigation, foundation-status disclosure, source and
-download paths, documentation access, and accessible status messages. Its layout may be more
-editorial, but its controls use the same state, focus, contrast, sizing, and motion rules.
+tokens, language controls, responsive navigation, foundation-status disclosure, marketing,
+documentation, download paths, site settings, accessibility information, release information,
+and accessible status messages. Its layout may be more editorial, but its controls use the
+same state, focus, contrast, sizing, and motion rules. Site settings configure the site only;
+they do not expose or simulate desktop game state.
+
+The website may later show genuine screenshots captured from the desktop application and link
+to verified desktop releases. It labels those artifacts accurately and never substitutes a
+mock playable viewport. No capture was produced for this foundation delivery.
 
 Product identity is consistent across title bar, headings, metadata, installer language,
 exports, and links. Sprout Hollow Valley must not reuse Sprout Hollow's local data, saves,

@@ -117,6 +117,23 @@ School-mode behavior, and emoji-off alternatives. No network translation is allo
 
 ## Responsive Pages site inventory
 
+### Exact surface boundary
+
+The Pages site is never a playable game surface. It provides only landing, marketing,
+documentation, download, settings, accessibility, evidence, changelog, and release
+information. It does not embed, host, stream, delegate, or run the 3D game, game controls,
+farm simulation, NPC simulation, or save simulation. The playable product exists only in
+the packaged desktop Electron application.
+
+Gameplay controls and simulation therefore have explicit Not applicable rows below for
+this exact surface-boundary reason. That status does not exempt any universal site feature:
+language, settings, navigation, Material 3, utilities, accessibility, local tools, locks,
+and evidence presentation remain independently required on the site.
+
+The site may later show genuine screenshots produced from an identified packaged desktop
+build and verified links to its releases. This documentation run produced no capture proof,
+and none of the capture targets below claim otherwise.
+
 The site must work from approximately 320 pixels wide through large desktop viewports,
 with no sideways body scroll, locally bundled assets, no analytics, and per-visitor state
 stored locally. Where the desktop contract names an OS credential vault or application-data
@@ -184,7 +201,9 @@ not a security claim and must never send visitor data to a server.
 | `WEB-DL-START` Browser-extension Start download | None; no browser extension is delivered | [Inventory rules](#inventory-rules) | Not required unless extension scope is added | `tests/valley-site/extension-download-start.test.ts` if scope changes | Installed extension must show a real Start decision before enqueue | Real Start download surface | **Not applicable** — the Pages site is not a browser extension |
 | `WEB-DL-PROGRESS` Browser-extension Downloading progress | None; no browser extension is delivered | [Inventory rules](#inventory-rules) | Not required unless extension scope is added | `tests/valley-site/extension-download-progress.test.ts` if scope changes | Installed extension must show a separate accessible active-transfer dialog | Real active Downloading surface | **Not applicable** — the Pages site is not a browser extension |
 | `WEB-DL-DONE` Browser-extension download completion | None; no browser extension is delivered | [Inventory rules](#inventory-rules) | Not required unless extension scope is added | `tests/valley-site/extension-download-complete.test.ts` if scope changes | Installed extension must show an always-on-top non-blocking completion surface | Real completion surface | **Not applicable** — the Pages site is not a browser extension |
-| `WEB-3D` 3D product and identity proof | `site/features/valley-overview.ts`, local screenshots/media, release metadata | [Independent identity](VALLEY-PRODUCT.md#independent-installed-identity), [3D runtime](VALLEY-PRODUCT.md#3d-runtime-contract) | W-L10N: product identity, camera, controls, bundled assets, performance, update, and limitations | `tests/valley-site/3d-product-proof.test.ts` | From the deployed site, inspect locally bundled truthful 3D media, identity/update/save boundaries, controls, performance contract, and evidence links | Responsive 3D Valley overview with build/evidence identity | **Planned** — current site presents the inherited 2D product |
+| `WEB-GAMEPLAY` Playable gameplay and game controls | None; the site contains no game runtime or playable scene | [Playable-product boundary](VALLEY-PRODUCT.md#playable-product-boundary) | Gameplay copy is not a site control; all site documentation about desktop controls still uses W-L10N | `tests/valley-site/surface-boundary.test.ts` | Confirm the deployed site has no gameplay boot route, input loop, streamed client, or embedded executable and clearly links to desktop download and documentation | Landing page with explicit desktop-only play notice and genuine release link target | **Not applicable** — the site is an information surface, not a delegated or hosted game client; the game exists only in the desktop application |
+| `WEB-SIMULATION` Farm, world, and NPC simulation | None; simulation runs only in the packaged desktop application | [Playable-product boundary](VALLEY-PRODUCT.md#playable-product-boundary) | Simulation controls are not site controls; explanatory articles and evidence remain fully W-L10N-localized | `tests/valley-site/surface-boundary.test.ts` | Confirm the deployed bundle contains no farm/world/NPC simulation and presents only documentation, evidence, screenshots, and release information | Documentation page describing desktop simulation without a playable viewport | **Not applicable** — simulation is outside the non-playable site surface, not delegated to or hosted by it |
+| `WEB-3D` 3D product and identity proof | `site/features/valley-overview.ts`, genuine packaged screenshots/media, release metadata | [Independent identity](VALLEY-PRODUCT.md#independent-installed-identity), [3D runtime](VALLEY-PRODUCT.md#3d-runtime-contract) | W-L10N: product identity, documented desktop camera/controls, bundled assets, performance, update, and limitations | `tests/valley-site/3d-product-proof.test.ts` | From the deployed non-playable site, inspect truthful packaged screenshots, read documented desktop controls and performance contract, and follow identity/update/save/evidence links without starting gameplay | Responsive 3D Valley information page with packaged build/evidence identity | **Planned** — proof presentation and genuine screenshots may be added later; no capture proof exists from this run and the site remains non-playable |
 | `WEB-CONTENT` 5,000 definitions and 240 NPC proof | `site/features/content-catalogue.ts`, generated registry evidence data | [Locked content baseline](VALLEY-PRODUCT.md#locked-content-baseline), [240 NPCs](VALLEY-PRODUCT.md#exactly-240-persistent-named-npcs) | W-L10N plus localized registry and NPC facts | `tests/valley-site/content-completeness-proof.test.ts` | Search and filter all nine exact category totals and exactly 240 NPCs, open per-definition evidence, and confirm totals come from the release registry | Responsive totals dashboard and representative definition evidence | **Planned** — no deployed Valley registry evidence exists |
 | `WEB-STRUCTURES` 700 fully enterable structures proof | `site/features/structure-catalogue.ts`, generated room/door/station/sanitation evidence | [All 700 structures](VALLEY-PRODUCT.md#all-700-structures-are-fully-enterable) | W-L10N for structures, rooms, doors, access, stations, sanitation, NPC roles, and failures | `tests/valley-site/enterable-structures-proof.test.ts` | Search all 400 factories and 300 other buildings, inspect every room/door/station/restroom/access record, and open matching packaged interaction/capture evidence | Responsive 700-structure evidence catalogue with exterior/interior examples | **Planned** — no deployed complete catalogue or built evidence exists |
 
@@ -246,4 +265,3 @@ Additional fixed mutations must turn the guard red when:
 The guard is designed to fail until the planned implementations and evidence exist. This
 documentation lane defines the design only; it does not add the script, registry, tests, or
 evidence files.
-

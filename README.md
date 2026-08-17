@@ -92,6 +92,16 @@ with semantic colour roles, scalable typography, clear focus, state layers, rest
 responsible for its own accessibility, language, navigation, search, feedback, appearance,
 documentation, and persistence contracts.
 
+**Sprout Hollow Valley is playable only in the Windows desktop Electron application.** The
+website is a non-playable landing, marketing, documentation, download, settings,
+accessibility, and release-information surface. It must not host, stream, emulate, or imitate
+the game, present a browser-playable farm, create browser saves, or turn a decorative scene
+into simulated gameplay. Site-level language and appearance settings affect the website only.
+
+Genuine application screenshots and verified release links may be added to the website when
+those artifacts exist. No captures were produced for this foundation delivery, so the current
+records do not present mock-ups or inherited pixel-art frames as Valley gameplay evidence.
+
 Three persisted language modes remain part of the product:
 
 - English;

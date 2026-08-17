@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import type { IpcMainInvokeEvent, WebContents } from 'electron'
+import { spawn } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { runCapture, wantsCapture } from './capture'
@@ -34,6 +35,86 @@ const DEV_SERVER_URL = app.isPackaged ? '' : (process.env.VITE_DEV_SERVER_URL?.t
 let mainWindow: BrowserWindow | null = null
 let fatalStartupReported = false
 
+const STARTUP_LOG_FILENAME = 'startup.log'
+const SQUIRREL_EXECUTABLE_NAME = 'SproutHollowValley.exe'
+const SQUIRREL_QUIT_DEADLINE_MS = 1_000
+const SQUIRREL_EVENTS = new Map<string, 'install' | 'updated' | 'uninstall' | 'obsolete'>([
+  ['--squirrel-install', 'install'],
+  ['--squirrel-updated', 'updated'],
+  ['--squirrel-uninstall', 'uninstall'],
+  ['--squirrel-obsolete', 'obsolete'],
+])
+
+/** Append path-free startup stages so installed failures remain diagnosable. */
+function appendStartupLog(stage: string): void {
+  try {
+    const directory = path.join(app.getPath('appData'), USER_DATA_DIRECTORY_NAME)
+    fs.mkdirSync(directory, { recursive: true })
+    fs.appendFileSync(
+      path.join(directory, STARTUP_LOG_FILENAME),
+      `${new Date().toISOString()} ${stage}\n`,
+      'utf8',
+    )
+  } catch {
+    // Logging must never turn a recoverable startup into a failure.
+  }
+}
+
+/**
+ * Squirrel launches the installed executable with a lifecycle argument while it owns the
+ * application directory. Never start Chromium, register the single-instance lock, or open a
+ * window in that short-lived process: doing so keeps packaged DLLs locked after the hook timeout.
+ */
+function handleSquirrelLifecycle(): boolean {
+  if (process.platform !== 'win32') return false
+  const event = SQUIRREL_EVENTS.get(process.argv[1] ?? '')
+  if (event === undefined) return false
+
+  appendStartupLog(`squirrel lifecycle ${event}`)
+  if (event === 'obsolete') {
+    app.exit(0)
+    return true
+  }
+
+  if (
+    !path.isAbsolute(process.execPath) ||
+    path.basename(process.execPath).toLocaleLowerCase('en-US') !==
+      SQUIRREL_EXECUTABLE_NAME.toLocaleLowerCase('en-US')
+  ) {
+    appendStartupLog(`squirrel lifecycle ${event} rejected`)
+    app.exit(1)
+    return true
+  }
+
+  const updateExecutable = path.resolve(path.dirname(process.execPath), '..', 'Update.exe')
+  const shortcutAction = event === 'uninstall' ? '--removeShortcut' : '--createShortcut'
+  let finished = false
+  const finish = (exitCode: number): void => {
+    if (finished) return
+    finished = true
+    appendStartupLog(`squirrel lifecycle ${event} complete`)
+    app.exit(exitCode)
+  }
+
+  try {
+    const child = spawn(updateExecutable, [shortcutAction, SQUIRREL_EXECUTABLE_NAME], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    child.once('close', (code) => finish(code === 0 ? 0 : 1))
+    child.once('error', () => finish(1))
+    child.unref()
+  } catch {
+    finish(1)
+    return true
+  }
+
+  // Squirrel allows only a short hook window. The detached shortcut command may finish after us.
+  setTimeout(() => finish(0), SQUIRREL_QUIT_DEADLINE_MS)
+  return true
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) return error.message
   const text = String(error)
@@ -45,6 +126,7 @@ function reportFatalStartup(stage: string, error: unknown): void {
   if (fatalStartupReported) return
   fatalStartupReported = true
   const message = `${stage}: ${errorMessage(error)}`
+  appendStartupLog(`fatal ${stage}`)
   process.stderr.write(`[startup] ${message}\n`)
   if (!wantsCapture(process.argv)) {
     dialog.showErrorBox(`${PRODUCT_NAME} could not start`, message)
@@ -62,6 +144,7 @@ function configureApplicationIdentity(): void {
   fs.mkdirSync(userDataPath, { recursive: true })
   app.setPath('userData', userDataPath)
   if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+  appendStartupLog('application identity ready')
 }
 
 function requiredApplicationFile(label: string, ...segments: string[]): string {
@@ -239,6 +322,7 @@ async function createWindow(): Promise<void> {
   // `ready-to-show` is paint-dependent. A successful document load is a safe
   // fallback that prevents an otherwise healthy frameless window staying hidden.
   if (!wantsCapture(process.argv)) revealWindow(win)
+  appendStartupLog('application window loaded')
 }
 
 function registerSaveHandlers(): void {
@@ -302,6 +386,7 @@ function applySecurityHeaders(): void {
 
 async function startApplication(): Promise<void> {
   await app.whenReady()
+  appendStartupLog('electron ready')
   applySecurityHeaders()
   registerSaveHandlers()
   registerWindowHandlers()
@@ -318,28 +403,34 @@ async function startApplication(): Promise<void> {
   })
 }
 
-let identityConfigured = true
-try {
-  configureApplicationIdentity()
-} catch (error) {
-  identityConfigured = false
-  reportFatalStartup('The application data directory could not be prepared', error)
-}
-
-if (identityConfigured) {
-  const hasSingleInstanceLock = app.requestSingleInstanceLock()
-  if (!hasSingleInstanceLock) {
-    app.quit()
-  } else {
-    app.on('second-instance', () => {
-      if (mainWindow !== null) revealWindow(mainWindow)
-    })
-    void startApplication().catch((error: unknown) => {
-      reportFatalStartup('Application startup failed', error)
-    })
+if (!handleSquirrelLifecycle()) {
+  appendStartupLog(`application launch ${app.getVersion()}`)
+  let identityConfigured = true
+  try {
+    configureApplicationIdentity()
+  } catch (error) {
+    identityConfigured = false
+    reportFatalStartup('The application data directory could not be prepared', error)
   }
-}
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  if (identityConfigured) {
+    const hasSingleInstanceLock = app.requestSingleInstanceLock()
+    if (!hasSingleInstanceLock) {
+      appendStartupLog('secondary instance redirected')
+      app.quit()
+    } else {
+      appendStartupLog('primary instance lock acquired')
+      app.on('second-instance', () => {
+        appendStartupLog('secondary instance activated primary')
+        if (mainWindow !== null) revealWindow(mainWindow)
+      })
+      void startApplication().catch((error: unknown) => {
+        reportFatalStartup('Application startup failed', error)
+      })
+    }
+  }
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

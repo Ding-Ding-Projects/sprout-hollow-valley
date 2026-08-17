@@ -45,6 +45,10 @@ does not claim that the planned 3D world or complete content catalogue is implem
 
 ### Fixed
 
+- Squirrel install, update, uninstall, and obsolete lifecycle launches now finish before normal
+  Electron startup, preventing installer hook timeouts, stale single-instance processes, locked
+  packaged DLLs, and the corrupt partial reinstall that previously left the app unable to launch.
+  Installed startup stages are recorded in a concise local log for failure diagnosis.
 - Packaged Electron startup now keeps the sandboxed preload self-contained, resolves required
   interface files from the application bundle, ignores development-server overrides in installed
   builds, reveals the frameless window after a successful document load, activates an existing

@@ -19,10 +19,24 @@ After the document loads, the frameless window is shown even if the paint-depend
 `ready-to-show` event has not arrived. A second launch activates and focuses the existing
 application instance instead of opening another process window.
 
+Squirrel.Windows maintenance launches are handled before normal application startup.
+`--squirrel-install` and `--squirrel-updated` create the packaged executable's shortcuts,
+`--squirrel-uninstall` removes them, and `--squirrel-obsolete` exits immediately. Each
+maintenance process exits within one second without creating Chromium processes, taking the
+single-instance lock, or opening a game window. Squirrel owns the version directory during
+these hooks; a normal application launch can otherwise outlive the hook timeout and keep DLLs
+locked, making the next installation fail while deleting the old version.
+
 If the data directory cannot be prepared, a required packaged file is missing, or the
 interface cannot load, startup writes one concise error to standard error and opens a
 `Sprout Hollow Valley could not start` dialog. The report names the failed stage and
 error message without dumping environment variables or a stack trace.
 
-This accelerated launch repair was traced statically. It did not launch the application,
-run tests, type checking, linting, auditing, packaging, review, or capture workflows.
+Installed startup also appends path-free stage records to
+`%APPDATA%\Sprout Hollow Valley\startup.log`. The log distinguishes Squirrel lifecycle work,
+normal primary and secondary launches, document load, and fatal startup stage without recording
+command arguments, environment variables, local file paths, save data, or stack traces.
+
+This installer repair was reproduced against the released v1.2.6 Squirrel package and then
+verified by installing a replacement package and launching its installed executable on a named
+off-screen Windows desktop. No screenshot or capture workflow was used.

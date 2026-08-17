@@ -16,11 +16,9 @@ import {
 } from 'three'
 import { VALLEY_CONTENT_REGISTRY } from '../../content/registry'
 import type {
-  BuildingDef,
   ContentRegistry,
   CropDef,
   DecorationDef,
-  FactoryDef,
   OrchardPlantDef,
 } from '../../content/types'
 import type { StaticCollider } from '../../engine3d'
@@ -37,16 +35,18 @@ import type {
   ThreeWorldCellBuilder,
   ThreeWorldCellContent,
 } from './three-world-cell-source'
+import {
+  AUTHORED_STRUCTURE_PLACEMENT_REGISTRY,
+  authoredStructurePlacementsForCell,
+  authoredStructureRegionIdForCell,
+  authoredValleyTerrainHeightAt,
+  createAuthoredStructurePlacementRegistry,
+  type AuthoredStructurePlacement,
+  type AuthoredStructurePlacementRegistry,
+  type AuthoredValleyRegionId,
+} from './authored-structure-placements'
 
-export type AuthoredValleyRegionId =
-  | 'region:meadow'
-  | 'region:forest'
-  | 'region:riverland'
-  | 'region:mountain'
-  | 'region:coastal'
-  | 'region:marsh'
-  | 'region:arid'
-  | 'region:alpine'
+export type { AuthoredValleyRegionId } from './authored-structure-placements'
 
 /** World units per streamed authored cell; shared by runtime streaming and save location IDs. */
 export const AUTHORED_VALLEY_CELL_SIZE = 16
@@ -90,6 +90,8 @@ export interface AuthoredValleyLocation {
 export interface AuthoredValleyWorldCellBuilderOptions {
   /** Defaults to the validated 5,000-definition Valley content registry. */
   readonly registry?: ContentRegistry
+  /** Defaults to the complete deterministic 700-exterior placement registry. */
+  readonly structurePlacements?: AuthoredStructurePlacementRegistry
   /** Allows low presets to omit point lights while keeping their physical lantern meshes. */
   readonly pointLights?: boolean
   /** Terrain subdivisions per streamed cell. Higher values produce smoother authored slopes. */
@@ -112,8 +114,6 @@ interface Segment {
 interface RegionContent {
   readonly crops: readonly CropDef[]
   readonly orchardPlants: readonly OrchardPlantDef[]
-  readonly factories: readonly FactoryDef[]
-  readonly buildings: readonly BuildingDef[]
   readonly lights: readonly DecorationDef[]
   readonly paths: readonly DecorationDef[]
 }
@@ -272,9 +272,6 @@ export const AUTHORED_ESTATE_ZONES: readonly AuthoredEstateZone[] = Object.freez
   }),
 ])
 
-const TOWN_SQUARE_CELL = Object.freeze({ x: 0, z: 0 })
-const MARKET_DISTRICT_CELL = Object.freeze({ x: -1, z: 1 })
-const INDUSTRIAL_DISTRICT_CELL = Object.freeze({ x: 2, z: 1 })
 const TOWN_SQUARE = Object.freeze({ x: 0.5, z: 0.5 })
 const MARKET_DISTRICT = Object.freeze({ x: -0.5, z: 1.5 })
 const INDUSTRIAL_DISTRICT = Object.freeze({ x: 2.5, z: 1.5 })
@@ -374,15 +371,9 @@ function squareDistance(left: AuthoredValleyCellPoint, right: AuthoredValleyCell
 }
 
 function regionForCell(point: AuthoredValleyCellPoint): AuthoredValleyRegion {
-  let region = AUTHORED_VALLEY_REGIONS[0]!
-  let distance = squareDistance(point, region.centreCell)
-  for (const candidate of AUTHORED_VALLEY_REGIONS.slice(1)) {
-    const candidateDistance = squareDistance(point, candidate.centreCell)
-    if (candidateDistance < distance) {
-      region = candidate
-      distance = candidateDistance
-    }
-  }
+  const regionId = authoredStructureRegionIdForCell(point)
+  const region = AUTHORED_VALLEY_REGIONS.find((candidate) => candidate.id === regionId)
+  if (region === undefined) throw new Error(`Missing authored Valley region ${regionId}`)
   return region
 }
 
@@ -447,8 +438,6 @@ function indexRegionContent(registry: ContentRegistry): ReadonlyMap<AuthoredVall
     result.set(region.id, Object.freeze({
       crops: Object.freeze([...forRegion(registry.crops, region.id)]),
       orchardPlants: Object.freeze([...forRegion(registry.orchardPlants, region.id)]),
-      factories: Object.freeze([...forRegion(registry.factories, region.id)]),
-      buildings: Object.freeze([...forRegion(registry.buildings, region.id)]),
       lights: Object.freeze([
         ...forRegion(
           registry.decorations.filter((definition) => definition.decorationType === 'light'),
@@ -497,15 +486,7 @@ function distanceToRoute(point: AuthoredValleyCellPoint, route: AuthoredRoute): 
 }
 
 function terrainHeightAt(worldX: number, worldZ: number, cellSize: number): number {
-  const x = worldX / cellSize
-  const z = worldZ / cellSize
-  const rolling = Math.sin(x * 0.82) * 0.16 + Math.cos(z * 0.67) * 0.13
-  const highridge = Math.exp(-squareDistance({ x, z }, { x: 3.5, z: -4.5 }) / 8) * 0.75
-  const snowcap = Math.exp(-squareDistance({ x, z }, { x: 4.5, z: 6.2 }) / 7) * 1.05
-  const mesa = Math.exp(-squareDistance({ x, z }, { x: 6.2, z: -4.2 }) / 6) * 0.42
-  const riverDistance = distanceToRoute({ x, z }, AUTHORED_RIVER)
-  const riverCut = Math.exp(-(riverDistance * riverDistance) / 0.045) * 0.34
-  return rolling + highridge + snowcap + mesa - riverCut
+  return authoredValleyTerrainHeightAt(worldX, worldZ, cellSize)
 }
 
 function clipSegmentToBounds(
@@ -930,24 +911,44 @@ function addBuilding(
   colliders: StaticCollider[],
   context: ThreeWorldCellBuildContext,
   region: AuthoredValleyRegion,
-  building: BuildingDef,
-  localX: number,
-  localZ: number,
-  instanceName: string,
+  placement: AuthoredStructurePlacement,
 ): void {
+  if (placement.structureKind !== 'building' || placement.definition.kind !== 'building') {
+    throw new Error(`Building renderer received ${placement.contentStructureId} as ${placement.structureKind}`)
+  }
+  const building = placement.definition
+  const { x: localX, z: localZ } = placement.localPosition
   const centreX = (context.descriptor.coordinate.x + 0.5) * context.cellSize
   const centreZ = (context.descriptor.coordinate.z + 0.5) * context.cellSize
-  const width = clamp(building.footprint.width * 0.38, 2.1, context.cellSize * 0.3)
-  const depth = clamp(building.footprint.depth * 0.38, 1.9, context.cellSize * 0.28)
+  const { width, depth } = placement.footprint
   const height = 2.05 + (mixSeed(context.descriptor.seed, building.id) % 4) * 0.18
+  const exteriorArchetype = building.buildingType === 'residential'
+    ? 'cottage-chimney'
+    : ['civic', 'education', 'health'].includes(building.buildingType)
+      ? 'public-cupola'
+      : ['commercial', 'hospitality', 'recreation'].includes(building.buildingType)
+        ? 'public-awning'
+        : 'service-annex'
   const baseY = terrainHeightAt(centreX + localX, centreZ + localZ, context.cellSize)
   const structure = new Group()
-  structure.name = `${instanceName}:${building.id}`
+  structure.name = placement.id
   structure.position.set(localX, baseY, localZ)
+  structure.rotation.y = placement.facingYaw
   structure.userData = {
     semantic: 'authored-structure',
     structureKind: 'building',
     contentStructureId: building.id,
+    placementId: placement.id,
+    placementOrdinal: placement.ordinal,
+    interiorGraphId: placement.interiorGraphId,
+    interiorEntryDoorId: placement.interiorEntryDoorId,
+    interiorEntryRoomId: placement.interiorEntryRoomId,
+    regionId: placement.regionId,
+    districtId: placement.district.id,
+    roadId: placement.road.id,
+    footprint: placement.footprint,
+    entrance: placement.entrance,
+    exteriorArchetype,
     label: building.name,
     definition: building,
   }
@@ -973,21 +974,85 @@ function addBuilding(
   roof.receiveShadow = true
   structure.add(roof)
 
+  const accentMaterial = createMaterial(resources, 0x6f5743, { roughness: 0.8 })
+  if (exteriorArchetype === 'public-cupola') {
+    const cupola = new Mesh(
+      ownGeometry(resources, new CylinderGeometry(0.32, 0.38, 0.58, 8)),
+      accentMaterial,
+    )
+    cupola.name = `${placement.id}:cupola`
+    cupola.position.y = height + 0.92
+    cupola.castShadow = true
+    structure.add(cupola)
+  } else if (exteriorArchetype === 'cottage-chimney') {
+    const chimney = new Mesh(
+      ownGeometry(resources, new BoxGeometry(0.32, 1.05, 0.32)),
+      accentMaterial,
+    )
+    chimney.name = `${placement.id}:chimney`
+    chimney.position.set(width * 0.24, height + 0.42, -depth * 0.18)
+    chimney.castShadow = true
+    structure.add(chimney)
+  } else if (exteriorArchetype === 'service-annex') {
+    const annex = new Mesh(
+      ownGeometry(resources, new BoxGeometry(width * 0.32, height * 0.58, depth * 0.66)),
+      createMaterial(resources, region.roofColor, { roughness: 0.82 }),
+    )
+    annex.name = `${placement.id}:service-annex`
+    annex.position.set(width * 0.34, height * 0.29, -depth * 0.05)
+    annex.castShadow = true
+    annex.receiveShadow = true
+    structure.add(annex)
+  }
+
   const door = new Mesh(
     ownGeometry(resources, new BoxGeometry(0.58, 1.18, 0.08)),
     createMaterial(resources, 0x48372b),
   )
-  door.name = `${building.id}:enterable-door`
+  door.name = placement.entrance.id
   door.position.set(0, 0.59, depth / 2 + 0.045)
   door.userData = {
     semantic: 'authored-structure-door',
     interactive: true,
     structureKind: 'building',
     contentStructureId: building.id,
-    label: `Enter ${building.name}`,
+    placementId: placement.id,
+    interiorGraphId: placement.interiorGraphId,
+    interiorEntryDoorId: placement.interiorEntryDoorId,
+    interiorEntryRoomId: placement.interiorEntryRoomId,
+    entranceId: placement.entrance.id,
+    approachPosition: placement.entrance.approachPosition,
+    realDestination: true,
+    label: placement.entrance.accessibleLabel,
     definition: building,
   }
   structure.add(door)
+
+  const entranceCanopy = new Mesh(
+    ownGeometry(resources, new BoxGeometry(1.15, 0.12, 0.62)),
+    createMaterial(resources, region.roofColor, { roughness: 0.72 }),
+  )
+  entranceCanopy.name = `${placement.id}:entrance-canopy`
+  entranceCanopy.position.set(0, 1.42, depth / 2 + 0.3)
+  entranceCanopy.rotation.x = -0.14
+  entranceCanopy.castShadow = true
+  structure.add(entranceCanopy)
+
+  const entranceSign = new Mesh(
+    ownGeometry(resources, new BoxGeometry(0.72, 0.34, 0.08)),
+    createMaterial(resources, 0xe5c274, { roughness: 0.58 }),
+  )
+  entranceSign.name = `${placement.id}:entrance-sign`
+  entranceSign.position.set(width * 0.28, 1.58, depth / 2 + 0.07)
+  entranceSign.userData = {
+    semantic: 'authored-structure-entrance-sign',
+    placementId: placement.id,
+    contentStructureId: building.id,
+    label: building.name,
+    entranceId: placement.entrance.id,
+    interiorGraphId: placement.interiorGraphId,
+  }
+  structure.add(entranceSign)
 
   const windowMaterial = createMaterial(resources, 0xf6d890, {
     emissive: 0x9a6323,
@@ -1006,7 +1071,7 @@ function addBuilding(
 
   addBoxCollider(
     colliders,
-    `${context.descriptor.key}:${instanceName}:${building.id}`,
+    placement.collisionId,
     centreX,
     centreZ,
     localX,
@@ -1024,24 +1089,43 @@ function addFactory(
   colliders: StaticCollider[],
   context: ThreeWorldCellBuildContext,
   region: AuthoredValleyRegion,
-  factory: FactoryDef,
-  localX: number,
-  localZ: number,
-  instanceName: string,
+  placement: AuthoredStructurePlacement,
 ): void {
+  if (placement.structureKind !== 'factory' || placement.definition.kind !== 'factory') {
+    throw new Error(`Factory renderer received ${placement.contentStructureId} as ${placement.structureKind}`)
+  }
+  const factory = placement.definition
+  const { x: localX, z: localZ } = placement.localPosition
   const centreX = (context.descriptor.coordinate.x + 0.5) * context.cellSize
   const centreZ = (context.descriptor.coordinate.z + 0.5) * context.cellSize
-  const width = clamp(factory.footprint.width * 0.42, 2.4, context.cellSize * 0.34)
-  const depth = clamp(factory.footprint.depth * 0.42, 2.2, context.cellSize * 0.32)
+  const { width, depth } = placement.footprint
   const height = 2.25
+  const silhouetteVariant = mixSeed(context.descriptor.seed, factory.factoryType) % 3
+  const exteriorArchetype = silhouetteVariant === 0
+    ? 'roof-tank'
+    : silhouetteVariant === 1
+      ? 'monitor-hall'
+      : 'hopper-hall'
   const baseY = terrainHeightAt(centreX + localX, centreZ + localZ, context.cellSize)
   const structure = new Group()
-  structure.name = `${instanceName}:${factory.id}`
+  structure.name = placement.id
   structure.position.set(localX, baseY, localZ)
+  structure.rotation.y = placement.facingYaw
   structure.userData = {
     semantic: 'authored-structure',
     structureKind: 'factory',
     contentStructureId: factory.id,
+    placementId: placement.id,
+    placementOrdinal: placement.ordinal,
+    interiorGraphId: placement.interiorGraphId,
+    interiorEntryDoorId: placement.interiorEntryDoorId,
+    interiorEntryRoomId: placement.interiorEntryRoomId,
+    regionId: placement.regionId,
+    districtId: placement.district.id,
+    roadId: placement.road.id,
+    footprint: placement.footprint,
+    entrance: placement.entrance,
+    exteriorArchetype,
     label: factory.name,
     definition: factory,
   }
@@ -1063,14 +1147,49 @@ function addFactory(
   roof.castShadow = true
   structure.add(roof)
 
+  if (exteriorArchetype === 'roof-tank') {
+    const tank = new Mesh(
+      ownGeometry(resources, new CylinderGeometry(0.5, 0.58, 1.08, 10)),
+      createMaterial(resources, 0x657478, { roughness: 0.52, metalness: 0.26 }),
+    )
+    tank.name = `${placement.id}:roof-tank`
+    tank.position.set(-width * 0.22, height + 0.72, 0)
+    tank.castShadow = true
+    structure.add(tank)
+  } else if (exteriorArchetype === 'monitor-hall') {
+    const monitor = new Mesh(
+      ownGeometry(resources, new BoxGeometry(width * 0.56, 0.62, depth * 0.42)),
+      createMaterial(resources, 0x879296, { roughness: 0.58, metalness: 0.14 }),
+    )
+    monitor.name = `${placement.id}:roof-monitor`
+    monitor.position.set(0, height + 0.42, 0)
+    monitor.castShadow = true
+    structure.add(monitor)
+  } else {
+    const hopper = new Mesh(
+      ownGeometry(resources, new ConeGeometry(0.62, 1.18, 8)),
+      createMaterial(resources, 0x7e7567, { roughness: 0.68, metalness: 0.1 }),
+    )
+    hopper.name = `${placement.id}:roof-hopper`
+    hopper.position.set(width * 0.22, height + 0.72, -depth * 0.08)
+    hopper.rotation.x = Math.PI
+    hopper.castShadow = true
+    structure.add(hopper)
+  }
+
   const chimneyMaterial = createMaterial(resources, 0x4a4d4a, { roughness: 0.66, metalness: 0.18 })
-  for (const side of [-1, 1]) {
+  const ventCount = 1 + (mixSeed(context.descriptor.seed, factory.factoryType) % 3)
+  for (let index = 0; index < ventCount; index += 1) {
     const chimney = new Mesh(
       ownGeometry(resources, new CylinderGeometry(0.18, 0.22, 1.35, 8)),
       chimneyMaterial,
     )
-    chimney.name = `${factory.id}:vent:${side}`
-    chimney.position.set(side * width * 0.28, height + 0.78, -depth * 0.18)
+    chimney.name = `${factory.id}:vent:${index}`
+    chimney.position.set(
+      ventCount === 1 ? 0 : -width * 0.28 + index * (width * 0.56 / (ventCount - 1)),
+      height + 0.78,
+      -depth * 0.18,
+    )
     chimney.castShadow = true
     structure.add(chimney)
   }
@@ -1079,22 +1198,55 @@ function addFactory(
     ownGeometry(resources, new BoxGeometry(width * 0.36, 1.35, 0.08)),
     createMaterial(resources, 0x4d5d61, { roughness: 0.62, metalness: 0.18 }),
   )
-  loadingDoor.name = `${factory.id}:enterable-loading-door`
+  loadingDoor.name = placement.entrance.id
   loadingDoor.position.set(0, 0.68, depth / 2 + 0.045)
   loadingDoor.userData = {
     semantic: 'authored-structure-door',
     interactive: true,
     structureKind: 'factory',
     contentStructureId: factory.id,
-    label: `Enter ${factory.name}`,
+    placementId: placement.id,
+    interiorGraphId: placement.interiorGraphId,
+    interiorEntryDoorId: placement.interiorEntryDoorId,
+    interiorEntryRoomId: placement.interiorEntryRoomId,
+    entranceId: placement.entrance.id,
+    approachPosition: placement.entrance.approachPosition,
+    realDestination: true,
+    label: placement.entrance.accessibleLabel,
     definition: factory,
   }
   structure.add(loadingDoor)
+
+  const loadingCanopy = new Mesh(
+    ownGeometry(resources, new BoxGeometry(width * 0.52, 0.14, 0.72)),
+    createMaterial(resources, region.roofColor, { roughness: 0.64, metalness: 0.12 }),
+  )
+  loadingCanopy.name = `${placement.id}:entrance-canopy`
+  loadingCanopy.position.set(0, 1.58, depth / 2 + 0.34)
+  loadingCanopy.rotation.x = -0.12
+  loadingCanopy.castShadow = true
+  structure.add(loadingCanopy)
+
+  const entranceSign = new Mesh(
+    ownGeometry(resources, new BoxGeometry(width * 0.5, 0.34, 0.08)),
+    createMaterial(resources, 0xe1c46f, { roughness: 0.52, metalness: 0.04 }),
+  )
+  entranceSign.name = `${placement.id}:entrance-sign`
+  entranceSign.position.set(0, 1.9, depth / 2 + 0.08)
+  entranceSign.userData = {
+    semantic: 'authored-structure-entrance-sign',
+    placementId: placement.id,
+    contentStructureId: factory.id,
+    label: factory.name,
+    entranceId: placement.entrance.id,
+    interiorGraphId: placement.interiorGraphId,
+  }
+  structure.add(entranceSign)
   root.add(structure)
 
   addBoxCollider(
     colliders,
-    `${context.descriptor.key}:${instanceName}:${factory.id}`,
+    placement.collisionId,
     centreX,
     centreZ,
     localX,
@@ -1212,17 +1364,11 @@ function addEstateFarm(
   region: AuthoredValleyRegion,
   estate: AuthoredEstateZone,
   content: RegionContent,
+  placements: readonly AuthoredStructurePlacement[],
   pointLights: boolean,
   estateFarming: Valley3DEstateFarmingStateV1 | null,
 ): void {
   const seed = mixSeed(context.descriptor.seed, estate.id)
-  const agricultural = content.buildings.filter((definition) => definition.buildingType === 'agricultural')
-  const building = selectDefinition(
-    agricultural.length > 0 ? agricultural : content.buildings,
-    seed,
-    `${estate.id}:farm-building`,
-  )
-  const factory = selectDefinition(content.factories, seed, `${estate.id}:factory`)
   const firstCrop = selectDefinition(content.crops, seed, `${estate.id}:crop:first`)
   const secondCrop = selectDefinition(content.crops, seed, `${estate.id}:crop:second`)
   const orchard = selectDefinition(content.orchardPlants, seed, `${estate.id}:orchard`)
@@ -1234,33 +1380,12 @@ function addEstateFarm(
     approachName: estate.approachName,
     cropIds: Object.freeze([firstCrop.id, secondCrop.id]),
     orchardPlantId: orchard.id,
-    buildingId: building.id,
-    factoryId: factory.id,
+    structurePlacementIds: Object.freeze(placements.map((placement) => placement.id)),
+    buildingId: placements.find((placement) => placement.structureKind === 'building')?.contentStructureId ?? null,
+    factoryId: placements.find((placement) => placement.structureKind === 'factory')?.contentStructureId ?? null,
   })
 
   addEstateFarmingPresentation(root, context, region, estate, estateFarming)
-  addBuilding(
-    root,
-    resources,
-    colliders,
-    context,
-    region,
-    building,
-    -context.cellSize * 0.24,
-    -context.cellSize * 0.2,
-    'estate-building',
-  )
-  addFactory(
-    root,
-    resources,
-    colliders,
-    context,
-    region,
-    factory,
-    context.cellSize * 0.23,
-    -context.cellSize * 0.2,
-    'estate-factory',
-  )
   const fenceMaterial = createMaterial(resources, 0x725439)
   const fenceWidth = context.cellSize * 0.44
   const fenceDepth = context.cellSize * 0.36
@@ -1282,64 +1407,90 @@ function addEstateFarm(
   )
 }
 
-function addDistrictStructures(
+function addAuthoredStructurePlacements(
   root: Group,
   resources: CellResources,
   colliders: StaticCollider[],
   context: ThreeWorldCellBuildContext,
   region: AuthoredValleyRegion,
   content: RegionContent,
+  placements: readonly AuthoredStructurePlacement[],
   pointLights: boolean,
 ): void {
+  if (placements.length === 0) return
   const coordinate = context.descriptor.coordinate
-  const isTown = coordinate.x === TOWN_SQUARE_CELL.x && coordinate.z === TOWN_SQUARE_CELL.z
-  const isMarket = coordinate.x === MARKET_DISTRICT_CELL.x && coordinate.z === MARKET_DISTRICT_CELL.z
-  const isIndustrial = coordinate.x === INDUSTRIAL_DISTRICT_CELL.x && coordinate.z === INDUSTRIAL_DISTRICT_CELL.z
-  if (!isTown && !isMarket && !isIndustrial) return
+  const districtRows = [...new Map(placements.map((placement) => [
+    placement.district.id,
+    placement.district,
+  ])).values()]
+  const roadRows = [...new Map(placements.map((placement) => [
+    placement.road.id,
+    placement.road,
+  ])).values()]
+  root.userData.structurePlacements = Object.freeze(placements.map((placement) => Object.freeze({
+    placementId: placement.id,
+    contentStructureId: placement.contentStructureId,
+    structureKind: placement.structureKind,
+    label: placement.label,
+    interiorGraphId: placement.interiorGraphId,
+    interiorEntryDoorId: placement.interiorEntryDoorId,
+    districtId: placement.district.id,
+    roadId: placement.road.id,
+    entrance: placement.entrance,
+  })))
+  root.userData.districts = Object.freeze(districtRows)
+  root.userData.structureRoads = Object.freeze(roadRows)
 
-  if (isIndustrial) {
-    const factory = selectDefinition(content.factories, context.descriptor.seed, 'industrial-quarter')
-    addFactory(root, resources, colliders, context, region, factory, 0, 0, 'industrial-quarter')
-    root.userData.district = Object.freeze({ name: 'Valley Works Industrial Quarter', factoryId: factory.id })
-  } else {
-    const preferredType = isTown ? 'civic' : 'commercial'
-    const preferred = content.buildings.filter((definition) => definition.buildingType === preferredType)
-    const building = selectDefinition(
-      preferred.length > 0 ? preferred : content.buildings,
-      context.descriptor.seed,
-      isTown ? 'town-square' : 'market-district',
-    )
-    addBuilding(
-      root,
-      resources,
-      colliders,
-      context,
-      region,
-      building,
-      0,
-      -context.cellSize * 0.16,
-      isTown ? 'town-hall' : 'market-hall',
-    )
-    root.userData.district = Object.freeze({
-      name: isTown ? 'Sprout Square Civic Centre' : 'Lantern Market District',
-      buildingId: building.id,
-    })
+  const laneDefinition = selectDefinition(content.paths, context.descriptor.seed, 'structure-access-lane')
+  const laneMaterial = createMaterial(resources, 0x9b7b50, { roughness: 0.98 })
+  laneMaterial.name = laneDefinition.id
+  const laneName = `structure-access-lane:${context.descriptor.key}`
+  addLinearSurface(
+    root,
+    resources,
+    context,
+    {
+      start: { x: coordinate.x, z: coordinate.z + 0.5 },
+      end: { x: coordinate.x + 1, z: coordinate.z + 0.5 },
+    },
+    laneName,
+    0.13,
+    0.065,
+    laneMaterial,
+    0.035,
+  )
+  const lane = root.getObjectByName(laneName)
+  if (lane !== undefined) {
+    lane.userData = {
+      semantic: 'authored-structure-access-lane',
+      interactive: false,
+      cellKey: context.descriptor.key,
+      roadIds: Object.freeze(roadRows.map((road) => road.id)),
+      placementIds: Object.freeze(placements.map((placement) => placement.id)),
+      pathDefinitionId: laneDefinition.id,
+    }
   }
 
-  const light = selectDefinition(content.lights, context.descriptor.seed, 'district-lights')
-  for (const [index, x] of [-0.28, 0.28].entries()) {
-    addLantern(
-      root,
-      resources,
-      colliders,
-      context,
-      light,
-      x * context.cellSize,
-      context.cellSize * 0.24,
-      200 + index,
-      pointLights,
-    )
+  for (const placement of placements) {
+    if (placement.structureKind === 'factory') {
+      addFactory(root, resources, colliders, context, region, placement)
+    } else {
+      addBuilding(root, resources, colliders, context, region, placement)
+    }
   }
+
+  const light = selectDefinition(content.lights, context.descriptor.seed, 'structure-lane-light')
+  addLantern(
+    root,
+    resources,
+    colliders,
+    context,
+    light,
+    context.cellSize * 0.43,
+    0,
+    200,
+    pointLights,
+  )
 }
 
 function addScatteredVegetation(
@@ -1350,6 +1501,7 @@ function addScatteredVegetation(
   region: AuthoredValleyRegion,
   content: RegionContent,
   hasEstate: boolean,
+  placements: readonly AuthoredStructurePlacement[],
 ): void {
   if (hasEstate) return
   const random = seededRandom(mixSeed(context.descriptor.seed, `vegetation:${region.id}`))
@@ -1367,7 +1519,12 @@ function addScatteredVegetation(
     }
     const nearRoad = AUTHORED_ROADS.some((route) => distanceToRoute(cellPoint, route) < ROAD_WIDTH_IN_CELLS * 1.6)
     const nearRiver = distanceToRoute(cellPoint, AUTHORED_RIVER) < RIVER_WIDTH_IN_CELLS * 1.5
-    if (nearRoad || nearRiver) continue
+    const nearStructure = placements.some((placement) =>
+      Math.abs(localX - placement.localPosition.x) < placement.footprint.width / 2 + placement.footprint.clearance + 0.7 &&
+      Math.abs(localZ - placement.localPosition.z) < placement.footprint.depth / 2 + placement.footprint.clearance + 0.7,
+    )
+    const nearAccessLane = Math.abs(localZ) < context.cellSize * 0.12
+    if (nearRoad || nearRiver || nearStructure || nearAccessLane) continue
     addTree(
       root,
       resources,
@@ -1426,6 +1583,7 @@ function buildAuthoredCell(
   context: ThreeWorldCellBuildContext,
   registry: ContentRegistry,
   regionContent: ReadonlyMap<AuthoredValleyRegionId, RegionContent>,
+  structurePlacements: AuthoredStructurePlacementRegistry,
   pointLights: boolean,
   terrainSegments: number,
   estateFarming: () => Valley3DEstateFarmingStateV1 | null,
@@ -1440,6 +1598,7 @@ function buildAuthoredCell(
   const region = regionForCell(logicalPoint)
   const content = regionContent.get(region.id)
   if (!content) throw new Error(`Missing authored content index for ${region.id}`)
+  const placements = authoredStructurePlacementsForCell(logicalPoint, structurePlacements)
   const root = new Group()
   root.name = `authored-valley-cell:${context.descriptor.key}`
   const centreX = (coordinate.x + 0.5) * context.cellSize
@@ -1451,6 +1610,8 @@ function buildAuthoredCell(
     cellKey: context.descriptor.key,
     registryFingerprint: registry.fingerprint,
     deterministicSeed: context.descriptor.seed,
+    structurePlacementIds: Object.freeze(placements.map((placement) => placement.id)),
+    structurePlacementCount: placements.length,
   })
 
   const resources: CellResources = { geometries: [], materials: [] }
@@ -1510,7 +1671,7 @@ function buildAuthoredCell(
   }
 
   const estate = estateForCell(logicalPoint)
-  addScatteredVegetation(root, resources, colliders, context, region, content, estate !== undefined)
+  addScatteredVegetation(root, resources, colliders, context, region, content, estate !== undefined, placements)
   if (estate) {
     addEstateFarm(
       root,
@@ -1520,11 +1681,21 @@ function buildAuthoredCell(
       region,
       estate,
       content,
+      placements,
       pointLights,
       estateFarming(),
     )
   }
-  addDistrictStructures(root, resources, colliders, context, region, content, pointLights)
+  addAuthoredStructurePlacements(
+    root,
+    resources,
+    colliders,
+    context,
+    region,
+    content,
+    placements,
+    pointLights,
+  )
 
   if (!estate && roadMidpoints.length > 0 && context.descriptor.seed % 3 === 0) {
     const light = selectDefinition(content.lights, context.descriptor.seed, 'roadside-light')
@@ -1565,6 +1736,11 @@ export function createAuthoredValleyWorldCellBuilder(
 ): ThreeWorldCellBuilder {
   const registry = options.registry ?? VALLEY_CONTENT_REGISTRY
   const regionContent = indexRegionContent(registry)
+  const structurePlacements = options.structurePlacements ?? (
+    options.registry === undefined
+      ? AUTHORED_STRUCTURE_PLACEMENT_REGISTRY
+      : createAuthoredStructurePlacementRegistry(registry)
+  )
   const pointLights = options.pointLights ?? true
   const terrainSegments = options.terrainSegments ?? DEFAULT_TERRAIN_SEGMENTS
   const estateFarming = options.estateFarming ?? (() => null)
@@ -1575,6 +1751,7 @@ export function createAuthoredValleyWorldCellBuilder(
     context,
     registry,
     regionContent,
+    structurePlacements,
     pointLights,
     terrainSegments,
     estateFarming,

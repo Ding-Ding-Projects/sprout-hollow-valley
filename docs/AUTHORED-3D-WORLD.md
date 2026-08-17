@@ -55,6 +55,43 @@ There is no `Math.random()`, wall-clock dependency, or frame-rate input. Rebuild
 with the same registry fingerprint and cell size produces the same content, transforms, names, and
 collider IDs.
 
+## Complete structure placement directory
+
+The authored exterior has a finite, deterministic placement directory for the complete structure
+catalogue: all 400 registered factories and all 300 registered buildings. Every registered
+structure content ID owns exactly one exterior placement, and no placement is synthesized for an
+unknown ID. A placement keeps the canonical content ID and binds it to that same structure's
+existing `InteriorGraph`; exterior entry never substitutes a generic, inferred, or unrelated
+interior.
+
+Each placement records enough authored data to be reconstructed independently of load order:
+
+- the region, named district, finite world-cell coordinates, and visible access-lane ID;
+- an exact world pose and cell-local pose, including facing, footprint, and elevation;
+- a real exterior-door pose, facing, and destination plus a walkable approach point and approach
+  clearance; and
+- the canonical interior graph ID for the registered structure content ID.
+
+The directory distributes structures across the eight regions and their civic, commercial,
+agricultural, and industrial districts. Access lanes are visible bundled road, path, yard, or
+forecourt geometry that connect each approach to the surrounding authored route network. A door is
+rendered only when its placement supplies the real approach and canonical interior destination:
+decorative fake doors and door-shaped meshes without a destination are not part of the contract.
+
+Placement geometry is procedural but bundled and recognizable. Factory exteriors use
+content-derived production silhouettes such as halls, loading areas, vents, stacks, tanks, or
+utility annexes. Other buildings use content-derived homes, shops, civic halls, agricultural
+structures, community spaces, and service facilities. These variants change visible exterior
+composition without changing stable identity, footprint, door metadata, or interior binding, and
+they require no runtime downloads.
+
+The directory supports complete iteration, exact lookup by structure content ID, and bounded lookup
+by finite cell. The world-cell builder requests only the placements for the cell being composed,
+so streaming work and resident exterior objects are bounded by that cell rather than all 700
+structures. Unloading a cell releases only its procedural exterior resources; directory records and
+canonical interior graphs remain immutable and can be resolved again when the cell becomes
+resident.
+
 ## Persistent estate farming
 
 The configurable world source receives the current validated `valley3d.estateFarming` snapshot

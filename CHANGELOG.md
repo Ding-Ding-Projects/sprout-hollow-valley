@@ -10,6 +10,8 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+## [1.2.9] - 2026-08-17
+
 Sprout Hollow Valley begins as an independent Windows-only third-person low-poly 3D farming
 and life-simulation product derived from Sprout Hollow under the MIT license. This update
 establishes the shell, website, product identity, public documentation, and a playable 3D

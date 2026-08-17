@@ -997,7 +997,8 @@ export function validateInteriorGraph(graph: unknown): readonly InteriorValidati
         `${room.path} must be accessible.`,
       )
     }
-    ;['doorIds', 'stationIds', 'fixtureIds'].forEach((field) => {
+    const registrationFields = ['doorIds', 'stationIds', 'fixtureIds'] as const
+    registrationFields.forEach((field) => {
       if (stringArray(room.value[field]) === null) {
         addIssue(
           issues,
@@ -1036,10 +1037,11 @@ export function validateInteriorGraph(graph: unknown): readonly InteriorValidati
         `${door.path} cannot lead back to the same room.`,
       )
     }
-    ;[
+    const endpoints = [
       ['fromRoomId', fromRoomId],
       ['toRoomId', toRoomId],
-    ].forEach(([field, roomId]) => {
+    ] as const
+    endpoints.forEach(([field, roomId]) => {
       if (roomId.length > 0 && roomId !== EXTERIOR_ROOM_ID && !roomById.has(roomId)) {
         addIssue(
           issues,

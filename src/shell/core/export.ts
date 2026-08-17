@@ -50,8 +50,8 @@ export interface ExportTarget {
 
 /** The envelope `exportAs('json', …)` writes and `importJson()` reads. */
 export interface ExportBundle {
-  app: 'sprout-hollow'
-  kind: 'shell-export'
+  app: 'sprout-hollow-valley'
+  kind: 'valley-shell-export'
   version: number
   exportedAt: string
   sections: ExportSection[]
@@ -63,8 +63,8 @@ export interface ExportBundle {
   }
 }
 
-const APP_ID = 'sprout-hollow'
-const BUNDLE_KIND = 'shell-export'
+const APP_ID = 'sprout-hollow-valley'
+const BUNDLE_KIND = 'valley-shell-export'
 
 /* ------------------------------------------------------------------------ resolution */
 
@@ -296,7 +296,7 @@ function mdTable(header: readonly string[], rows: ReadonlyArray<readonly string[
 }
 
 function toMarkdown(resolved: Resolved): string {
-  const lines: string[] = ['# Sprout Hollow — export', '', `Exported ${iso(resolved.at)}`, '']
+  const lines: string[] = ['# Sprout Hollow Valley — export', '', `Exported ${iso(resolved.at)}`, '']
 
   if (resolved.sections.includes('settings')) {
     lines.push('## Settings', '')
@@ -382,7 +382,7 @@ export function extensionFor(format: ExportFormat): string {
   }
 }
 
-/** `sprout-hollow-settings-2026-08-16-1432.json` — sortable, and a fact, not a sentence. */
+/** `sprout-hollow-valley-settings-2026-08-16-1432.json` — sortable and factual. */
 export function suggestFilename(format: ExportFormat, what: ExportTarget = {}): string {
   const resolved = resolve(what)
   const scope = resolved.sections.length === 1 ? resolved.sections[0] : 'all'

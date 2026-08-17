@@ -25,7 +25,7 @@ import { PAL } from '../../engine/palette'
 import { onLangChange, t } from '../core/i18n'
 
 /** The product name. A fact: never translated, never restyled by the funny level. */
-export const APP_NAME = 'Sprout Hollow'
+export const APP_NAME = 'Sprout Hollow Valley'
 
 /**
  * Stable ids for the appearance editor. `src/shell/ui/appearance.ts` can attach to

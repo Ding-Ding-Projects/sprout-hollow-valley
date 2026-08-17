@@ -1,58 +1,109 @@
 /**
- * Landing page behaviour.
+ * Progressive enhancements for the Sprout Hollow Valley landing page.
  *
- * The wordmark is drawn with the game's own 7x9 body bitmap face rather than a web font,
- * so the page and the game are literally set in the same type. It reads the face straight
- * out of `src/engine/font.ts`, so the framebuffer doubling flowed through here with no
- * hand editing. Everything else is progressive enhancement: with scripting off, the page
- * still describes the game and every download button still resolves to the latest release
- * on GitHub.
+ * English content and direct repository/release links remain useful without
+ * scripting. This module adds a local language preference, local section
+ * search, optional regular-expression matching, and release metadata from the
+ * public GitHub API.
  */
-import { drawText, textWidth, FONT_H } from '../src/engine/font'
-import { PAL } from '../src/engine/palette'
 
-const REPO = 'Ding-Ding-Projects/farming-game'
+type LanguageMode = 'en' | 'yue' | 'bi'
 
-/* ---------------------------------------------------------------- wordmark */
+const REPOSITORY = 'Ding-Ding-Projects/sprout-hollow-valley'
+const LANGUAGE_STORAGE_KEY = 'sprout-hollow-valley.site.language-mode.v1'
 
-function paintWordmark(canvas: HTMLCanvasElement): void {
-  const lines = ['SPROUT', 'HOLLOW']
-  const scale = window.innerWidth < 640 ? 6 : 10
-  const gap = 2
-  const logicalW = Math.max(...lines.map((line) => textWidth(line)))
-  const logicalH = lines.length * FONT_H + (lines.length - 1) * gap
+const TITLES = {
+  en: 'Sprout Hollow Valley — a low-poly 3D farming life simulation',
+  yue: 'Sprout Hollow Valley — 低多邊形 3D 農莊生活模擬',
+} as const
 
-  // One extra pixel each side for the hard shadow.
-  canvas.width = (logicalW + 1) * scale
-  canvas.height = (logicalH + 1) * scale
-  canvas.style.width = `${canvas.width}px`
+const DESCRIPTIONS = {
+  en: 'Sprout Hollow Valley is a Windows-only third-person low-poly 3D farming life simulation set in one authored open world.',
+  yue: '《Sprout Hollow Valley》係 Windows 專屬第三身低多邊形 3D 農莊生活模擬，舞台係一個精心設計嘅開放山谷。',
+} as const
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  ctx.imageSmoothingEnabled = false
-  ctx.setTransform(scale, 0, 0, scale, 0, 0)
+let languageMode: LanguageMode = readStoredLanguage()
 
-  lines.forEach((line, i) => {
-    const x = Math.floor((logicalW - textWidth(line)) / 2)
-    drawText(ctx, line, x, i * (FONT_H + gap), PAL.lantern, { shadow: PAL.ink })
-  })
+function isLanguageMode(value: string | null): value is LanguageMode {
+  return value === 'en' || value === 'yue' || value === 'bi'
 }
 
-/* ------------------------------------------------------------- screenshots */
+function readStoredLanguage(): LanguageMode {
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    return isLanguageMode(stored) ? stored : 'en'
+  } catch {
+    return 'en'
+  }
+}
 
-/** A shot that has not been captured yet should vanish, not show a broken icon. */
-function hideMissingShots(): void {
-  for (const img of document.querySelectorAll<HTMLImageElement>('.shots img')) {
-    img.addEventListener('error', () => {
-      img.closest('figure')?.setAttribute('hidden', '')
-    })
-    if (img.complete && img.naturalWidth === 0) {
-      img.closest('figure')?.setAttribute('hidden', '')
+function rememberLanguage(mode: LanguageMode): void {
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, mode)
+  } catch {
+    // A private or restricted browser can decline storage. The active page
+    // still changes language for the rest of this visit.
+  }
+}
+
+function localize(english: string, cantonese: string): string {
+  if (languageMode === 'yue') return cantonese
+  if (languageMode === 'bi') return english === cantonese ? english : `${english} ／ ${cantonese}`
+  return english
+}
+
+function applyLanguage(mode: LanguageMode, announce = true): void {
+  languageMode = mode
+  document.documentElement.lang = mode === 'yue' ? 'yue-Hant-HK' : 'en'
+  document.documentElement.dataset.language = mode
+
+  for (const element of document.querySelectorAll<HTMLElement>('[data-copy-en][data-copy-yue]')) {
+    const english = element.dataset.copyEn
+    const cantonese = element.dataset.copyYue
+    if (english && cantonese) element.textContent = localize(english, cantonese)
+  }
+
+  for (const element of document.querySelectorAll<HTMLElement>('[data-aria-en][data-aria-yue]')) {
+    const english = element.dataset.ariaEn
+    const cantonese = element.dataset.ariaYue
+    if (english && cantonese) element.setAttribute('aria-label', localize(english, cantonese))
+  }
+
+  for (const element of document.querySelectorAll<HTMLInputElement>('[data-placeholder-en][data-placeholder-yue]')) {
+    const english = element.dataset.placeholderEn
+    const cantonese = element.dataset.placeholderYue
+    if (english && cantonese) element.placeholder = localize(english, cantonese)
+  }
+
+  const selected = document.querySelector<HTMLInputElement>(
+    `input[name="language-mode"][value="${mode}"]`,
+  )
+  if (selected) selected.checked = true
+
+  document.title = localize(TITLES.en, TITLES.yue)
+  const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+  if (description) description.content = localize(DESCRIPTIONS.en, DESCRIPTIONS.yue)
+
+  renderReleaseStatus()
+  renderPaletteResults()
+
+  if (announce) {
+    const status = document.getElementById('language-status')
+    if (status) {
+      const names: Record<LanguageMode, string> = {
+        en: 'English',
+        yue: '香港粵語',
+        bi: 'English and 香港粵語',
+      }
+      status.textContent = localize(
+        `Page language changed to ${names[mode]}.`,
+        `網頁語言已轉做 ${names[mode]}。`,
+      )
     }
   }
 }
 
-/* ----------------------------------------------------------------- release */
+/* ---------------------------------------------------------------- release */
 
 interface ReleaseAsset {
   name: string
@@ -63,132 +114,290 @@ interface ReleaseAsset {
 interface Release {
   tag_name: string
   published_at: string
+  html_url: string
   assets: ReleaseAsset[]
 }
 
-// Windows only, deliberately. See the release workflow.
-const PLATFORMS = [
-  { id: 'win', test: (n: string) => n.endsWith('.exe'), label: 'Installer' },
-] as const
+type ReleaseState =
+  | { kind: 'loading' }
+  | { kind: 'unavailable' }
+  | { kind: 'available'; release: Release; installer?: ReleaseAsset }
+
+let releaseState: ReleaseState = { kind: 'loading' }
 
 function megabytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function applyRelease(release: Release): void {
-  for (const platform of PLATFORMS) {
-    const asset = release.assets.find((a) => platform.test(a.name.toLowerCase()))
-    if (!asset) continue
+function releaseDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return ''
+  const locale = languageMode === 'yue' ? 'zh-HK' : 'en-CA'
+  return date.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
 
-    const link = document.getElementById(`dl-${platform.id}`)
-    const sub = document.getElementById(`sub-${platform.id}`)
-    if (link instanceof HTMLAnchorElement) link.href = asset.browser_download_url
-    if (sub) sub.textContent = `${platform.label} — ${megabytes(asset.size)}`
+function renderReleaseStatus(): void {
+  const status = document.getElementById('release-status')
+  const detail = document.getElementById('download-detail')
+  if (!status || !detail) return
+
+  if (releaseState.kind === 'loading') {
+    status.textContent = localize(
+      'Checking GitHub for a published release. The button already points to the static latest-release page.',
+      '而家正喺 GitHub 睇吓有冇已發佈版本；個按鈕本身已經直接指去最新版本頁。',
+    )
+    return
   }
 
-  const line = document.getElementById('release-line')
-  if (!line) return
-
-  const published = new Date(release.published_at)
-  const when = Number.isNaN(published.valueOf())
-    ? ''
-    : ` — released ${published.toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })}`
-  line.textContent = `${release.tag_name}${when}. Free and open source. No account, no telemetry.`
-}
-
-/* ------------------------------------------------------- dim sum code name */
-
-const CATALOG =
-  'https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json'
-
-interface Dish {
-  id?: string
-  name?: { en?: string; zhHant?: string }
-  jyutping?: string
-  image?: { path?: string; alt?: { en?: string } }
-}
-
-/** Must match scripts/dish-name.mjs exactly, or the site and the notes disagree. */
-function hash(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
+  if (releaseState.kind === 'unavailable') {
+    status.textContent = localize(
+      'Release details could not be loaded. The button still opens the static latest-release page.',
+      '暫時載入唔到版本資料；個按鈕仍然可以打開靜態最新版本頁。',
+    )
+    detail.textContent = localize(
+      'Open the published release, if available',
+      '如有已發佈版本，就會打開下載頁',
+    )
+    return
   }
-  return h >>> 0
+
+  const { release, installer } = releaseState
+  const published = releaseDate(release.published_at)
+  const datePhrase = published
+    ? localize(` published ${published}`, `喺 ${published} 發佈`)
+    : ''
+
+  if (installer) {
+    status.textContent = localize(
+      `${release.tag_name}${datePhrase}. GitHub lists a Windows installer.`,
+      `${release.tag_name}${datePhrase}。GitHub 有列出 Windows 安裝程式。`,
+    )
+    detail.textContent = localize(
+      `Windows installer — ${megabytes(installer.size)}`,
+      `Windows 安裝程式 — ${megabytes(installer.size)}`,
+    )
+    return
+  }
+
+  status.textContent = localize(
+    `${release.tag_name}${datePhrase}. No Windows installer is listed, so the button opens the release page.`,
+    `${release.tag_name}${datePhrase}。暫時未見 Windows 安裝程式，所以按鈕會打開版本頁。`,
+  )
+  detail.textContent = localize('Open release details', '打開版本詳情')
 }
 
-/** The photos are published as release assets, split into volumes by dish number. */
-function photoUrl(dish: Dish): string {
-  const n = Number(/(\d+)$/.exec(String(dish.id ?? ''))?.[1] ?? 1)
-  const part = n <= 995 ? 1 : Math.floor((n - 996) / 990) + 2
-  const tag = part === 1 ? 'catalog-v1' : `catalog-v1-part-${String(part).padStart(3, '0')}`
-  const file = String(dish.image?.path ?? '').split('/').pop() ?? ''
-  return `https://github.com/Ding-Ding-Projects/dim-sum-photos/releases/download/${tag}/${file}`
-}
-
-async function showDish(version: string): Promise<void> {
-  const section = document.getElementById('dish-section')
-  const nameEl = document.getElementById('dish-name')
-  const photo = document.getElementById('dish-photo')
-  const link = document.getElementById('dish-link')
-  if (!section || !nameEl || !(photo instanceof HTMLImageElement) || !(link instanceof HTMLAnchorElement)) return
+async function loadLatestRelease(): Promise<void> {
+  const download = document.getElementById('download-windows')
 
   try {
-    const response = await fetch(CATALOG, { headers: { Accept: 'application/json' } })
-    if (!response.ok) return
-    const catalog = (await response.json()) as { dishes?: Dish[] }
-    const dishes = (catalog.dishes ?? []).filter((d) => d?.name?.en && d?.image?.path)
-    if (dishes.length === 0) return
+    const response = await fetch(
+      `https://api.github.com/repos/${REPOSITORY}/releases/latest`,
+      { headers: { Accept: 'application/vnd.github+json' } },
+    )
+    if (!response.ok) {
+      releaseState = { kind: 'unavailable' }
+      renderReleaseStatus()
+      return
+    }
 
-    const dish = dishes[hash(`sprout-hollow@${version}`) % dishes.length]
-    const zh = dish.name?.zhHant
-    nameEl.textContent = zh ? `${dish.name?.en} · ${zh}` : (dish.name?.en ?? '')
-    photo.src = photoUrl(dish)
-    photo.alt = dish.image?.alt?.en ?? `Photograph of ${dish.name?.en ?? 'the dish'}`
-    link.href = photoUrl(dish)
-    // A dish whose photo has not been published yet should not leave a broken frame.
-    photo.addEventListener('error', () => section.setAttribute('hidden', ''))
-    section.removeAttribute('hidden')
-  } catch {
-    // Offline or rate-limited. The section simply stays hidden.
-  }
-}
-
-async function loadRelease(): Promise<void> {
-  try {
-    const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-    if (!response.ok) return
     const release = (await response.json()) as Release
-    applyRelease(release)
-    void showDish(release.tag_name.replace(/^v/, ''))
+    const installer = release.assets.find(
+      (asset) => asset.name.toLowerCase().endsWith('.exe') && asset.size > 0,
+    )
+    releaseState = { kind: 'available', release, installer }
+
+    if (download instanceof HTMLAnchorElement) {
+      download.href = installer?.browser_download_url || release.html_url
+    }
   } catch {
-    // Offline, rate-limited, or no release cut yet. The static links already point
-    // at /releases/latest, so there is nothing to recover from.
+    releaseState = { kind: 'unavailable' }
+  }
+
+  renderReleaseStatus()
+}
+
+/* -------------------------------------------------------- command palette */
+
+interface CommandItem {
+  id: string
+  titleEn: string
+  titleYue: string
+  haystack: string
+}
+
+const palette = document.getElementById('command-palette')
+const paletteQuery = document.getElementById('palette-query')
+const paletteRegex = document.getElementById('palette-regex')
+const paletteStatus = document.getElementById('palette-status')
+const paletteResults = document.getElementById('palette-results')
+
+function collectCommandItems(): CommandItem[] {
+  const items: CommandItem[] = []
+
+  for (const section of document.querySelectorAll<HTMLElement>('[data-command][id]')) {
+    const titleEn = section.dataset.searchTitleEn
+    const titleYue = section.dataset.searchTitleYue
+    if (!titleEn || !titleYue) continue
+
+    const localizedCopy = Array.from(
+      section.querySelectorAll<HTMLElement>('[data-copy-en][data-copy-yue]'),
+    ).flatMap((element) => [element.dataset.copyEn ?? '', element.dataset.copyYue ?? ''])
+
+    items.push({
+      id: section.id,
+      titleEn,
+      titleYue,
+      haystack: [
+        titleEn,
+        titleYue,
+        section.dataset.searchKeywords ?? '',
+        ...localizedCopy,
+      ].join(' '),
+    })
+  }
+
+  return items
+}
+
+const commandItems = collectCommandItems()
+
+function paletteMatches(): { items: CommandItem[]; invalidRegex: boolean } {
+  if (!(paletteQuery instanceof HTMLInputElement) || !(paletteRegex instanceof HTMLInputElement)) {
+    return { items: commandItems, invalidRegex: false }
+  }
+
+  const query = paletteQuery.value.trim()
+  if (!query) return { items: commandItems, invalidRegex: false }
+
+  if (paletteRegex.checked) {
+    try {
+      const expression = new RegExp(query, 'i')
+      return {
+        items: commandItems.filter((item) => expression.test(item.haystack)),
+        invalidRegex: false,
+      }
+    } catch {
+      return { items: [], invalidRegex: true }
+    }
+  }
+
+  const needle = query.toLocaleLowerCase()
+  return {
+    items: commandItems.filter((item) => item.haystack.toLocaleLowerCase().includes(needle)),
+    invalidRegex: false,
   }
 }
 
-/* -------------------------------------------------------------------- boot */
+function closePalette(): void {
+  if (!(palette instanceof HTMLDialogElement)) return
+  if (palette.open && typeof palette.close === 'function') palette.close()
+  else palette.removeAttribute('open')
+}
 
-const wordmark = document.getElementById('wordmark')
-if (wordmark instanceof HTMLCanvasElement) {
-  paintWordmark(wordmark)
+function renderPaletteResults(): void {
+  if (!paletteStatus || !(paletteResults instanceof HTMLOListElement)) return
+  const { items, invalidRegex } = paletteMatches()
+  paletteResults.replaceChildren()
 
-  let last = window.innerWidth < 640
-  window.addEventListener('resize', () => {
-    const small = window.innerWidth < 640
-    if (small !== last) {
-      last = small
-      paintWordmark(wordmark)
+  if (invalidRegex) {
+    paletteStatus.textContent = localize(
+      'That regular expression is not valid. Edit it to continue searching this page.',
+      '呢個正規表示式唔成立，改一改先可以繼續搜尋呢一頁。',
+    )
+    return
+  }
+
+  paletteStatus.textContent = localize(
+    `${items.length} section${items.length === 1 ? '' : 's'} found. Search stays on this page.`,
+    `搵到 ${items.length} 個章節。搜尋只會喺呢一頁進行。`,
+  )
+
+  for (const item of items) {
+    const listItem = document.createElement('li')
+    listItem.className = 'palette-result'
+
+    const link = document.createElement('a')
+    link.href = `#${item.id}`
+
+    const title = document.createElement('strong')
+    title.textContent = localize(item.titleEn, item.titleYue)
+
+    const hint = document.createElement('span')
+    hint.textContent = localize('Jump to section', '跳去章節')
+
+    link.append(title, hint)
+    link.addEventListener('click', () => {
+      closePalette()
+      window.requestAnimationFrame(() => {
+        const target = document
+          .getElementById(item.id)
+          ?.querySelector<HTMLElement>('h2[tabindex="-1"]')
+        target?.focus()
+      })
+    })
+
+    listItem.append(link)
+    paletteResults.append(listItem)
+  }
+}
+
+function openPalette(): void {
+  if (!(palette instanceof HTMLDialogElement)) return
+  renderPaletteResults()
+
+  if (typeof palette.showModal === 'function') palette.showModal()
+  else palette.setAttribute('open', '')
+
+  window.requestAnimationFrame(() => {
+    if (paletteQuery instanceof HTMLInputElement) {
+      paletteQuery.focus()
+      paletteQuery.select()
     }
   })
 }
 
-hideMissingShots()
-void loadRelease()
+document.getElementById('open-command-palette')?.addEventListener('click', openPalette)
+document.getElementById('close-command-palette')?.addEventListener('click', closePalette)
+paletteQuery?.addEventListener('input', renderPaletteResults)
+paletteRegex?.addEventListener('change', renderPaletteResults)
+
+palette?.addEventListener('click', (event) => {
+  if (event.target === palette) closePalette()
+})
+
+document.addEventListener('keydown', (event) => {
+  if (
+    event.ctrlKey
+    && event.shiftKey
+    && !event.altKey
+    && !event.metaKey
+    && event.key.toLocaleLowerCase() === 'f'
+  ) {
+    event.preventDefault()
+    openPalette()
+  }
+})
+
+/* -------------------------------------------------------------------- boot */
+
+const languageControl = document.getElementById('language-control')
+if (languageControl instanceof HTMLFieldSetElement) {
+  languageControl.disabled = false
+  languageControl.addEventListener('change', (event) => {
+    const input = event.target
+    if (!(input instanceof HTMLInputElement) || !isLanguageMode(input.value)) return
+    rememberLanguage(input.value)
+    applyLanguage(input.value)
+  })
+}
+
+for (const element of document.querySelectorAll<HTMLElement>('[data-js-only]')) {
+  element.hidden = false
+}
+
+applyLanguage(languageMode, false)
+void loadLatestRelease()

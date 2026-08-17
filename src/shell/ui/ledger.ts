@@ -2060,8 +2060,8 @@ export function createLedgerPanel(host: LedgerHost): LedgerPanel {
     }
     const state = host.state()
     const bundle = {
-      app: 'sprout-hollow',
-      kind: 'ledger-export',
+      app: 'sprout-hollow-valley',
+      kind: 'valley-ledger-export',
       version: 1,
       exportedAt: stamp,
       summary:
@@ -2112,7 +2112,7 @@ export function createLedgerPanel(host: LedgerHost): LedgerPanel {
     const format = currentFormat()
     const text = buildExport(format)
     const stamp = safeIso(new Date()).replace(/[:T]/g, '-').slice(0, 16)
-    const filename = `sprout-hollow-ledger-${stamp}.${extensionFor(format)}`
+    const filename = `sprout-hollow-valley-ledger-${stamp}.${extensionFor(format)}`
     try {
       download(filename, text, mimeFor(format))
       pageStatus.textContent = t('export.done', { filename })

@@ -8,7 +8,7 @@
  * palette validator rather than eyeball it, apply the mark specs, ship the hover layer,
  * then the accessibility pass. Where that guidance and `docs/GRAPHICS.md` disagree on
  * colour, the game palette wins, because a chart that does not look like the rest of
- * Sprout Hollow is a worse chart here.
+ * Sprout Hollow Valley is a worse chart here.
  *
  * **Form.** Prices over time for several goods that the reader must tell apart: a
  * multi-series line chart, capped at `SERIES_LIMIT` and never cycling a hue. The supply
@@ -31,7 +31,7 @@
  * | Chroma floor | **FAIL** — dusk, soil and sky sit at C 0.04–0.05 |
  * | Contrast vs surface | WARN — the light green reads 2.23:1 |
  *
- * The chroma failure is not fixable and is not a mistake: Sprout Hollow's blue, brown
+ * The chroma failure is not fixable and is not a mistake: Sprout Hollow Valley's blue, brown
  * and purple are deliberately desaturated pixel-art tones, and the brief says the game
  * palette wins. A hue below the chroma floor stops doing identity work on its own, so
  * identity here is **never carried by colour alone**. Every series also gets its own

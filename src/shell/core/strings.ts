@@ -177,8 +177,8 @@ const CORE = {
   // =========================================================================
 
   'app.name': {
-    en: ['Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow'],
-    yue: ['芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow'],
+    en: ['Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley'],
+    yue: ['芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley'],
   },
   'app.tagline': {
     en: [
@@ -197,8 +197,8 @@ const CORE = {
     ],
   },
   'app.window.label': {
-    en: ['Sprout Hollow window', 'Sprout Hollow window', 'The Sprout Hollow window', 'The Sprout Hollow window', 'The Sprout Hollow window itself'],
-    yue: ['Sprout Hollow 視窗', 'Sprout Hollow 視窗', 'Sprout Hollow 個窗', 'Sprout Hollow 呢個窗', 'Sprout Hollow 本尊呢個窗'],
+    en: ['Sprout Hollow Valley window', 'Sprout Hollow Valley window', 'The Sprout Hollow Valley window', 'The Sprout Hollow Valley window', 'The Sprout Hollow Valley window itself'],
+    yue: ['Sprout Hollow Valley 視窗', 'Sprout Hollow Valley 視窗', 'Sprout Hollow Valley 個窗', 'Sprout Hollow Valley 呢個窗', 'Sprout Hollow Valley 本尊呢個窗'],
   },
   'titlebar.label': {
     en: ['Title bar', 'Title bar', 'Title bar', 'The title bar', 'The title bar, keeper of the window'],
@@ -4610,8 +4610,8 @@ const EXTRA = {
     yue: ['{action} 冇得 undo。', '{action} 冇得 undo。', '{action} 係冇得 undo 㗎。', '{action} 真係冇得 undo，一啲都冇。', '{action} 冇得 undo、冇備份、冇下次，亦都唔會有好心人救你。'],
   },
   'titlebar.wordmark': {
-    en: ['Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow', 'Sprout Hollow'],
-    yue: ['芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow', '芽谷 Sprout Hollow'],
+    en: ['Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley', 'Sprout Hollow Valley'],
+    yue: ['芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley', '芽谷山谷 Sprout Hollow Valley'],
   },
   'tabs.panel.empty': {
     en: ['{title} has nothing in it yet.', '{title} has nothing in it yet.', '{title} is empty for now.', '{title} is empty for now. Give it a moment.', '{title} is empty for now, and rather enjoying the peace.'],

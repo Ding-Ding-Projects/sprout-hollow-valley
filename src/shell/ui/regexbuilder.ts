@@ -478,7 +478,7 @@ function exportPattern(host: BuilderHost, sample: string): void {
     }
   }
   try {
-    download('sprout-hollow-pattern.md', `${lines.join('\n')}\n`, 'text/markdown;charset=utf-8')
+    download('sprout-hollow-valley-pattern.md', `${lines.join('\n')}\n`, 'text/markdown;charset=utf-8')
   } catch {
     announce(tr('search.builder.copyFailed', { pattern }))
   }

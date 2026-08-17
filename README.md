@@ -1,238 +1,156 @@
-# Sprout Hollow
+# Sprout Hollow Valley
 
-[![CI](https://github.com/Ding-Ding-Projects/farming-game/actions/workflows/ci.yml/badge.svg)](https://github.com/Ding-Ding-Projects/farming-game/actions/workflows/ci.yml)
-[![Release](https://github.com/Ding-Ding-Projects/farming-game/actions/workflows/release.yml/badge.svg)](https://github.com/Ding-Ding-Projects/farming-game/actions/workflows/release.yml)
-[![Latest release](https://img.shields.io/github/v/release/Ding-Ding-Projects/farming-game)](https://github.com/Ding-Ding-Projects/farming-game/releases/latest)
+Sprout Hollow Valley is an independent Windows-only third-person low-poly 3D open-world
+farming and life-simulation product. It is derived from Sprout Hollow under the MIT license,
+but it has its own application identity, local data, save format, updates, executable,
+installer, exports, repository, and release channel.
 
-A quiet, unhurried pixel-art farming game for the desktop.
+This repository is currently a **product foundation**, not a completed 3D game. It establishes
+the Valley identity, an accessible farm-themed Material 3 shell and responsive website
+direction, public product contracts, and a path for retaining useful deterministic farming
+rules. The connected 3D valley, full content catalogue, 700 finished structures, and complete
+240-person life simulation remain planned until their implementations and evidence exist.
 
-You inherit one plot at the bottom of a wooded valley: a season's savings, a rusty hoe, and
-ground full of weeds, rocks and fallen logs. Clear it, till it, sow it, water it, and see
-what the year gives back. There is no timer pushing you and no way to lose. The whole screen
-is the game.
+Start with:
 
-Sprout Hollow is built with Electron, TypeScript and Vite. It renders to a single 640 x 448
-canvas that is upscaled by a whole number to fit your window, so the pixels stay square and
-the edges stay hard.
+- [PLAN.md](PLAN.md) for locked scope, exact content counts, architecture, and completion
+  requirements;
+- [docs/VALLEY-PRODUCT.md](docs/VALLEY-PRODUCT.md) for the 3D product contract;
+- [docs/VALLEY-COMPLETENESS.md](docs/VALLEY-COMPLETENESS.md) for the hand-written,
+  per-surface implementation and evidence inventory;
+- [DESIGN.md](DESIGN.md) for the Material 3 shell/site and low-poly 3D direction.
 
-**Windows only.** There is no macOS or Linux build. The code has no Windows-specific
-dependency and will very likely run on either, but shipping a target nobody tests is worse
-than not shipping it, so only the Windows installer is published.
+## Product direction
 
-**[Download the latest release](https://github.com/Ding-Ding-Projects/farming-game/releases/latest)**
-&nbsp;·&nbsp; [Website](https://ding-ding-projects.github.io/farming-game/)
+The complete product is one authored connected valley with eight starting estate types:
+meadow, forest, riverland, mountain, coastal, marsh, arid, and alpine. It retains the cozy,
+deterministic farming and economy foundations while moving play into a third-person 3D world
+with authored terrain, bundled assets, enterable interiors, persistent residents, and
+recoverable consequences.
 
-The installer is not code-signed, so SmartScreen will warn the first time you run it. Every
-release is built in public by GitHub Actions from the source in this repository, and you can
-[build it yourself](#building-it-yourself) instead.
+The complete-release baseline is **at least 5,000 unique non-NPC content definitions**. The
+category counts in [PLAN.md](PLAN.md#world-farming-and-content) are:
 
-![A spring farm at midday: tilled rows of crops at different growth stages beside a plank
-farmhouse, with rocks, fallen logs and a pond on the valley floor](docs/shots/farm-spring-midday.png)
+| Category | Definitions |
+|---|---:|
+| Field crops | 500 |
+| Trees, orchard plants, bushes, and vines | 250 |
+| Animal species | 150 |
+| Factories or production facilities | 400 |
+| Non-factory buildings | 300 |
+| Sellable products | 1,500 |
+| Production recipes | 1,200 |
+| Raw-material types | 300 |
+| Functional decorations, paths, fences, signs, lights, and outdoor objects | 400 |
+| **Minimum non-NPC total** | **5,000** |
 
-<p align="center">
-  <img src="docs/shots/farm-evening.png" width="49%" alt="The farm in the evening, washed in warm lantern light" />
-  <img src="docs/shots/farm-winter.png" width="49%" alt="The farm in winter: pale frosted grass, drifting snow, bare trees" />
-</p>
+The 400 factories or production facilities and 300 non-factory buildings form **700 fully
+enterable structures**. Every structure is planned with a complete exterior, usable entrance
+and exit, separately streamed interior, traversable room graph, functional stations,
+context-appropriate sanitation and hand washing, and a real eventual destination for every
+visible door.
 
-These are real frames, not mock-ups. They are produced by `tests/shots.test.ts`, which drives
-the game's own art modules through a small software rasteriser and writes the PNGs directly —
-see [Screenshots](#screenshots).
+NPC content is counted separately: the complete product contains **exactly 240 persistent
+named NPCs**, each with an authored identity, home, household, work state, deterministic
+schedule, relationships, needs, memories, dialogue, and context-aware behavior.
 
-## Every building is a room you walk into
+## Independent product identity
 
-A coop is not a menu. Walk up to its door, press the same button you use on a crop row, and
-you are inside it: a nest per bird along the wall, a feed trough, the hay, and whoever lives
-there standing in their pens. Tending an animal is the same act as watering a plant — face
-it, use it.
+Sprout Hollow Valley must never read, overwrite, import, update, uninstall, reset, or export
+through Sprout Hollow's identity. These names are stable boundaries, not display-only labels:
 
-<p align="center">
-  <img src="docs/shots/inside-coop.png" width="49%" alt="Inside a coop: chickens, a duck and a turkey standing in strawed pens along the wall, a hanging lamp overhead, a feed trough and a nest box" />
-  <img src="docs/shots/inside-barn.png" width="49%" alt="Inside a barn: cows, a goat and sheep in their stalls over a board floor scattered with straw" />
-</p>
-
-Using a pen does the most useful thing that is pending — collect what is ready, then feed,
-then pet — so there is one button and never a submenu. The trough feeds the whole building
-at once and the nest collects it.
-
-<p align="center">
-  <img src="docs/shots/inside-farmhouse.png" width="32%" alt="Inside the farmhouse: a bed with a quilt, a strapped chest and a standing desk with the order ledger open on it" />
-  <img src="docs/shots/inside-bakery.png" width="32%" alt="Inside the bakery: a chequered tile floor and three workbenches, one working and one holding finished output" />
-  <img src="docs/shots/inside-stall.png" width="32%" alt="Inside the roadside stall: six counters with scales, some stocked with produce and some bare" />
-</p>
-
-Production buildings are workrooms. The bakery carries a bench for every baking machine
-standing on the farm, so a run of jobs is queued in one place instead of walked to one tile
-at a time. The roadside stall gives each of its six slots a counter you walk down and price.
-
-<p align="center">
-  <img src="docs/shots/inside-mine.png" width="32%" alt="Inside the mine: a hewn rock floor and walls under a single hanging lamp" />
-  <img src="docs/shots/inside-greenhouse.png" width="32%" alt="Inside the greenhouse: glazed walls and four raised beds of seedlings over worked soil" />
-  <img src="docs/shots/inside-silo.png" width="32%" alt="Inside the silo: corrugated metal walls and a stack of banded hay bales" />
-</p>
-
-Rooms are at most twenty tiles by eleven, which is exactly the size of the farm, so going
-through a door needs no camera and no second layout. The contract is
-[docs/INTERIORS.md](docs/INTERIORS.md).
-
-## Features
-
-- Four seasons of 28 days each, a day that runs 6:00 AM to 2:00 AM, and a year that turns
-  over when winter ends.
-- Fifteen crops across spring, summer, fall and winter, from cheap-and-fast starters to slow
-  cash crops, including several that keep bearing after the first harvest.
-- Weather that matters: rain and storms water the whole farm overnight, snow waters nothing,
-  and a crop left dry for three days in a row withers.
-- Tools with a cost: tilling, watering, sowing, harvesting, clearing debris, placing
-  sprinklers and working fertilizer into the soil all spend energy and daylight. Run out of
-  either and you are carried home, lighter in the pocket.
-- A shop that stocks the seeds of the current season plus sprinklers and fertilizer, sells the
-  animals your buildings can house, and buys your produce at normal, silver or gold quality.
-- Twenty buildings, every one of them enterable: coops and barns with a pen per animal, a
-  farmhouse with a bed and an order ledger, workrooms with a bench per machine, a silo of hay,
-  and a roadside stall you walk down and price slot by slot.
-- Everything is deterministic: the same save always plays the same farm, because nothing in
-  the rules layer reads the clock or calls the system random number generator.
-- Keyboard-first controls, a screen-reader live region mirroring the game state, and support
-  for the reduced-motion preference.
-
-## Controls
-
-| Input | Does |
+| Boundary | Sprout Hollow Valley identity |
 |---|---|
-| Arrows / WASD | Walk, and face that way |
-| Space / Enter | Use what is ahead: swing the held tool, open a machine, or go through a door |
-| Esc | Leave a room, or close the top panel |
-| L | Inside an animal building, its occupants as a list |
-| 1 - 7 | Pick hoe, can, seeds, hand, axe, sprinkler, fertilizer |
-| Q / E | Cycle the selected seed |
-| B | Shop |
-| I | Bag |
-| N | Sleep |
-| H / F1 | Help |
-| M | Mute |
+| Product name | `Sprout Hollow Valley` |
+| Package and export app slug | `sprout-hollow-valley` |
+| Electron application ID | `com.dingdingprojects.sprouthollowvalley` |
+| User-data directory | `%APPDATA%\Sprout Hollow Valley` |
+| Save schema and file | `ValleySaveV1` in `sprout-hollow-valley.save.v1.json`; no legacy save import |
+| Shell storage | `sprout-hollow-valley.shell.v1` |
+| IPC namespace | `sprout-hollow-valley:` |
+| Export kinds | `valley-shell-export` and `valley-ledger-export` |
+| Export filenames | Every download begins with `sprout-hollow-valley-` |
+| Executable | `SproutHollowValley.exe` |
+| Squirrel.Windows installer | `Sprout-Hollow-Valley-Setup-${version}.exe` |
+| Repository and update provider | `Ding-Ding-Projects/sprout-hollow-valley` |
+| Public release-asset base | `https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/latest/download` |
 
-The mouse is optional: every action is reachable from the keyboard.
+Electron sets the user-data path to `%APPDATA%\Sprout Hollow Valley` before any application
+data or save access. The `window.sprout` renderer bridge name is retained temporarily for
+source compatibility; it is only an interface name and does not reuse Sprout Hollow storage,
+save, update, or export identities.
 
-## Building it yourself
+Valley saves are fresh and versioned. The product does not import Sprout Hollow saves, share
+their directory, or probe for them. The update identity is likewise restricted to the Valley
+repository and its Squirrel.Windows assets.
 
-You need Node.js 22 or newer.
+## Accessible shell and website foundation
 
-```
+The Windows application shell and the public website use a farm-themed Material 3 foundation
+with semantic colour roles, scalable typography, clear focus, state layers, restrained motion,
+48 px interaction targets, responsive layouts, and textual recovery paths. Each surface is
+responsible for its own accessibility, language, navigation, search, feedback, appearance,
+documentation, and persistence contracts.
+
+Three persisted language modes remain part of the product:
+
+- English;
+- playful Hong Kong Cantonese;
+- compact English and Cantonese bilingual mode.
+
+English and Cantonese each have an independent funny-level control from 1 to 5. The controls
+change tone, never facts: names, quantities, dates, prices, paths, key bindings, errors,
+warnings, consent, and recovery instructions keep the same meaning at every level.
+
+## Building locally
+
+Use Node.js 22 or newer, then install the locked dependencies:
+
+```powershell
 npm install
 ```
 
-| Command | What it does |
+The following scripts are defined by the repository. This list documents supported commands;
+it does not claim that a command has passed in the current foundation update.
+
+| Command | Purpose |
 |---|---|
-| `npm run dev` | Vite dev server, for a quick preview in the browser at the printed URL |
-| `npm start` | Builds and runs the real desktop app in Electron |
-| `npm test` | Runs the unit test suite (vitest) |
-| `npm run typecheck` | Type-checks the renderer and the Electron main process |
-| `npm run build` | Type-checks, then builds both processes into `dist/` and `dist-electron/` |
-| `npm run package` | Builds and packages an installer into `release/` with electron-builder |
+| `npm run dev` | Start the Vite development server |
+| `npm start` | Build the Electron main process and renderer, then launch the desktop application |
+| `npm run build:main` | Compile the Electron main and preload processes |
+| `npm run build:renderer` | Build the application renderer |
+| `npm run build:site` | Build the public website |
+| `npm run build` | Run the repository's complete application build script |
+| `npm run package` | Build and create unsigned Squirrel.Windows release artifacts in `release/` |
 
-The browser preview plays the whole game; only the save file lives elsewhere. Under Electron,
-saves are written to `save.json` in the per-user application data directory. In the browser
-preview there is no such file, so a session starts fresh.
+The project is Windows-only. There is no supported macOS or Linux package. Release artifacts
+are unsigned, so Windows may display an unknown-publisher or SmartScreen warning.
 
-## Project layout
+## Repository map
 
-```
-src/game/       Pure rules: calendar, crops, world generation, actions, shop, save format.
-                No canvas, no DOM, no wall clock, no unseeded randomness. Fully testable.
-src/engine/     Generic pixel primitives: palette, 5 x 7 bitmap font, drawing helpers,
-                input, immediate-mode UI, synthesised audio. Knows nothing about farming.
-src/art/        Draws game concepts as pixels: tiles, plants, the farmer, scenery, weather.
-src/renderer/   Scenes, the frame loop, and the bridge to Electron.
-electron/       Main process and preload script. Imports none of the above.
-tests/          Unit tests for the rules layer.
-docs/           The module contract every layer is written against.
-DESIGN.md       The binding art direction: palette, light, motion, UI, sound.
+```text
+electron/                    Electron main process, preload boundary, and Windows identity
+src/shell/                   Application-shell state, language, navigation, and UI foundation
+site/                        Responsive public website
+docs/VALLEY-PRODUCT.md       Third-person 3D product contract
+docs/VALLEY-COMPLETENESS.md  Per-surface completeness and evidence inventory
+PLAN.md                      Locked product scope and exact completion targets
+DESIGN.md                    Material 3 and low-poly 3D design direction
+CHANGELOG.md                 Valley foundation changes and inherited project history
 ```
 
-The dependency arrow only ever points one way: `game` knows nothing of `engine`, `engine`
-knows nothing of `art`, and `art` knows nothing of `renderer`.
+## Inherited Sprout Hollow history
 
-## No assets, no runtime dependencies
+Sprout Hollow Valley began from Sprout Hollow v1.1.0 at commit
+`ccb5d03a2750b5a4c49d9b7d82e6ff068cca340d`. The inherited project is a deterministic
+pixel-art farming game with an Electron shell. Its farming rules, economy, progression,
+documentation, and implementation history are useful source material, but its pixel-art
+presentation and product identity are not the current Valley product contract.
 
-There are no image, font or audio files anywhere in this repository, and nothing is
-downloaded at runtime.
-
-- Every sprite, tile and particle is drawn from code with rectangle and pixel calls.
-- The text is a hand-authored 5 x 7 bitmap face stored as strings.
-- Every sound effect is synthesised on the fly with WebAudio oscillators.
-- The whole world is generated from a seed, so a farm is a number rather than a file.
-
-The shipped application has no runtime dependencies. Everything in `package.json` is a
-development dependency: TypeScript, Vite, vitest, Electron and electron-builder.
-
-## Releases
-
-Every push to `main` publishes a release, and the same workflow can be run manually
-from the Actions tab in one click with no inputs to fill in.
-
-Packaging is **Squirrel.Windows**, so each release carries the complete update asset
-set: the `Setup.exe`, the `RELEASES` feed, the full `.nupkg` and any generated deltas.
-
-The artifacts are **not code-signed and never will be.** Windows will show an
-unknown-publisher or SmartScreen warning on first run, and that warning is accurate —
-nothing here carries a signature and no authenticity is claimed. The release workflow
-asserts every produced executable actually reports `NotSigned` before it will publish,
-and every release lists the SHA-256 of each artifact as generated by the run that
-built it.
-
-Each release takes a code name from the public
-[dim sum catalogue](https://github.com/Ding-Ding-Projects/dim-sum-photos), chosen
-deterministically from the version. The photograph is linked from that catalogue and
-never copied here. Run `npm run dish` to see the current one.
-
-### Size of the tree
-
-A convenience copy, regenerated when the tree changes; the release notes are the record,
-because they are produced by the run that built the release. Reproduce it with
-`npm run count`.
-
-| Area | Files | Lines |
-|---|---:|---:|
-| Game rules | 27 | 16,293 |
-| Engine | 6 | 1,670 |
-| Art | 8 | 11,493 |
-| Renderer | 14 | 6,026 |
-| Application shell | 29 | 29,307 |
-| Electron | 3 | 523 |
-| Website | 3 | 773 |
-| Tests | 34 | 13,566 |
-| Scripts | 5 | 357 |
-| Documentation | 12 | 2,893 |
-| **Total** | **141** | **82,901** |
-
-## Screenshots
-
-```
-npm run shots
-```
-
-Renders real frames into `docs/shots/` and publishes the set to `site/shots/` for the
-website. It is skipped by a normal `npm test`; `SHOTS=1` is what turns it on, and
-`npm run shots` sets that in a way that works on Windows as well as on a POSIX shell.
-
-The renderer is worth explaining, because the obvious approach does not work. Win32
-`PrintWindow` returns solid black for any Chromium window — the page is composited on a
-surface the OS cannot read back — and on a GPU-less off-screen desktop the renderer never
-even reaches `dom-ready`, so an automated Electron capture hangs rather than failing.
-
-The art layer, though, only ever makes nine 2D-context calls: `fillRect`, `fillStyle`,
-`save`, `restore`, `translate`, `scale`, `beginPath`, `rect` and `clip`. So the shot renderer
-implements exactly those nine, drives the **real** drawing modules against a real game state,
-and rasterises the result into a PNG with nothing but `zlib`. No browser, no GPU, no
-dependencies, and deterministic — the same seed always produces the same image.
-
-It covers the world layer and the interiors. The room shots go through the very same
-`drawRoom` the game calls every frame, against a real `interiorFor` derived from a real save,
-so a picture of a coop that looks wrong is the coop being wrong rather than the picture.
-
-The HUD and tool belt are drawn by the scene layer, which needs a live input and UI instance,
-so the frames are cropped to the world band rather than faking chrome that would not be real.
+The original [`Ding-Ding-Projects/farming-game`](https://github.com/Ding-Ding-Projects/farming-game)
+repository, installations, and saves remain separate and untouched. Historical release notes
+are retained in [CHANGELOG.md](CHANGELOG.md) under clearly labelled inherited sections.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The derivation retains the original license and attribution.

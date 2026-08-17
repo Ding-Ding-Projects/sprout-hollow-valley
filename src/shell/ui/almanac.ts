@@ -1,5 +1,5 @@
 /**
- * The Almanac — the whole of Sprout Hollow's documentation, in the application and
+ * The Almanac — the whole of Sprout Hollow Valley's documentation, in the application and
  * completely offline.
  *
  * Two rules shape this file.

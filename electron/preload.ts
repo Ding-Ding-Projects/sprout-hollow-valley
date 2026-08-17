@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
+import { IPC_CHANNELS } from './identity'
 
 /** Called with the window's new maximised state whenever the main process reports one. */
 type MaximizedListener = (maximized: boolean) => void
@@ -11,27 +12,27 @@ type MaximizedListener = (maximized: boolean) => void
  * trust the shape of an IPC reply.
  */
 contextBridge.exposeInMainWorld('sprout', {
-  readSave: (): Promise<string | null> => ipcRenderer.invoke('save:read'),
+  readSave: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.saveRead),
   writeSave: async (json: string): Promise<void> => {
-    await ipcRenderer.invoke('save:write', json)
+    await ipcRenderer.invoke(IPC_CHANNELS.saveWrite, json)
   },
   clearSave: async (): Promise<void> => {
-    await ipcRenderer.invoke('save:clear')
+    await ipcRenderer.invoke(IPC_CHANNELS.saveClear)
   },
 
   minimizeWindow: async (): Promise<void> => {
-    await ipcRenderer.invoke('window:minimize')
+    await ipcRenderer.invoke(IPC_CHANNELS.windowMinimize)
   },
   /** Maximises a restored window and restores a maximised one. Resolves to the new state. */
   toggleMaximizeWindow: async (): Promise<boolean> => {
-    const maximized: unknown = await ipcRenderer.invoke('window:maximize')
+    const maximized: unknown = await ipcRenderer.invoke(IPC_CHANNELS.windowMaximize)
     return maximized === true
   },
   closeWindow: async (): Promise<void> => {
-    await ipcRenderer.invoke('window:close')
+    await ipcRenderer.invoke(IPC_CHANNELS.windowClose)
   },
   isWindowMaximized: async (): Promise<boolean> => {
-    const maximized: unknown = await ipcRenderer.invoke('window:isMaximized')
+    const maximized: unknown = await ipcRenderer.invoke(IPC_CHANNELS.windowIsMaximized)
     return maximized === true
   },
   /**
@@ -43,9 +44,9 @@ contextBridge.exposeInMainWorld('sprout', {
     const handler = (_event: IpcRendererEvent, maximized: unknown): void => {
       listener(maximized === true)
     }
-    ipcRenderer.on('window:maximized-changed', handler)
+    ipcRenderer.on(IPC_CHANNELS.windowMaximizedChanged, handler)
     return (): void => {
-      ipcRenderer.removeListener('window:maximized-changed', handler)
+      ipcRenderer.removeListener(IPC_CHANNELS.windowMaximizedChanged, handler)
     }
   },
 })

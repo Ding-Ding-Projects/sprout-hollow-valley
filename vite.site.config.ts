@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 // the game itself — nothing here is playable.
 export default defineConfig({
   root: 'site',
-  base: process.env.PAGES_BASE ?? '/',
+  base: process.env.PAGES_BASE ?? '/sprout-hollow-valley/',
   build: {
     outDir: '../dist-site',
     emptyOutDir: true,

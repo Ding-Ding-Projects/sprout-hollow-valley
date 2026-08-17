@@ -30,6 +30,18 @@ below. Current per-surface status is recorded in
 | Saves | Fresh, versioned Valley saves only; no Sprout Hollow save import or shared save directory |
 | Online boundaries | No multiplayer, online account, cloud save, runtime asset download, online-generated dialogue, microtransaction, or paid content in the first complete release |
 
+### Playable-product boundary
+
+The game itself exists only in the packaged desktop Electron application. The responsive
+Pages site is a non-playable landing, marketing, documentation, download, settings,
+accessibility, and release-information surface. It never embeds, hosts, streams, or runs
+gameplay, a playable 3D scene, the farm simulation, NPC simulation, or desktop game input.
+
+The site may later present genuine screenshots from the packaged application and verified
+links to downloadable releases. Those items are evidence and distribution information,
+not playable gameplay. No screenshot, capture, or packaged interaction proof was produced
+by the documentation work that created this contract.
+
 ## Independent installed identity
 
 The original Sprout Hollow repository, installation, and saves must remain untouched.
@@ -189,8 +201,12 @@ focus, contrast, target size, or semantic structure.
 ## Universal surface contract
 
 The desktop shell and the responsive Pages site independently implement the same complete
-user-facing feature contract. A feature on one surface does not satisfy the other. The
-contract includes:
+universal user-interface feature contract. A feature on one surface does not satisfy the
+other. This shared contract governs each surface's own navigation, settings, utilities,
+accessibility, documentation, and evidence presentation; it does not turn the site into a
+game client. Desktop gameplay controls and simulation remain exclusive to the packaged
+application and are not applicable to the non-playable site. The universal contract
+includes:
 
 - English, playful Hong Kong Cantonese, and compact bilingual modes; independent English
   and Cantonese funny-level controls; an emoji switch; School mode; and optional serialized
@@ -234,9 +250,12 @@ exit, save, reload, and repeat. The run fails for fake doors, unreachable rooms 
 missing sanitation, queue deadlocks, stuck NPCs, or state that does not survive reload.
 
 Long-running deterministic simulations cover all estates, seasons, NPC schedules,
-relationships, jobs, businesses, structures, room transitions, and events. Real captures
-must come from the packaged Windows application and deployed responsive site. Source
-previews, mocked bridges, injected states, and reused captures are not acceptance evidence.
+relationships, jobs, businesses, structures, room transitions, and events. Real captures,
+when they are produced, must come from the packaged Windows application and deployed
+responsive site. Source previews, mocked bridges, injected states, and reused captures are
+not acceptance evidence. This documentation run produced no capture proof; genuine
+packaged screenshots and verified release links may be added later with matching build
+identity and evidence records.
 
 Each surface also requires the exact-match negative regression described in
 [VALLEY-COMPLETENESS.md](VALLEY-COMPLETENESS.md#executable-negative-regression-design).

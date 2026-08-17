@@ -20,6 +20,9 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - A farm-themed Material 3 direction for the Windows shell and responsive website, including
   semantic colour, typography, shape, elevation, interaction-state, motion, focus, target-size,
   contrast, and responsive-layout rules.
+- A strict delivery boundary in which gameplay exists only in the Windows desktop Electron
+  application. The website is limited to landing, marketing, documentation, download,
+  site-settings, accessibility, and release information and does not host or imitate gameplay.
 - English, playful Hong Kong Cantonese, and compact bilingual language modes, with independent
   English and Cantonese funny-level controls that do not change facts.
 - A separate Sprout Hollow Valley application, local-data, save, update, executable, installer,
@@ -36,7 +39,8 @@ does not claim that the planned 3D world or complete content catalogue is implem
 
 - Tests and captures were intentionally not run for this foundation update under the accelerated
   delivery mode. Build and packaging results, if any, are reported separately and are not implied
-  by this changelog.
+  by this changelog. Genuine desktop screenshots and verified release links may be added later,
+  but this delivery does not present mock-ups or inherited frames as Valley gameplay evidence.
 
 ## Inherited Sprout Hollow history: unreleased development record
 

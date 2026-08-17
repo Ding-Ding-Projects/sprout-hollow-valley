@@ -5,12 +5,12 @@ farming and life-simulation product. It is derived from Sprout Hollow under the 
 but it has its own application identity, local data, save format, updates, executable,
 installer, exports, repository, and release channel.
 
-This repository is currently a **playable 3D foundation**, not a completed farming game. The
-packaged Farm tab now runs a responsive third-person Three.js world with a controllable
-low-poly player, camera-relative keyboard/mouse/gamepad input, collision, camera orbit, streamed
-fallback terrain, and shell-aware pause/resume behavior. The fully authored connected valley,
-complete farming adapter, finished structure catalogue, and complete 240-person life simulation
-remain incomplete until their implementations and evidence exist.
+The packaged Farm tab now composes the authored connected valley, canonical deterministic farm
+state, 240-person life state and presentation, farming interaction adapter, and all 700 detailed
+interior graphs into one live third-person Three.js surface. The same canonical save is restored,
+mutated, autosaved, and exposed to shell panels; rendering does not recreate farming or NPC rules.
+This composition milestone does not by itself claim the repository-wide test, packaged-artifact,
+capture, or long-running simulation evidence required for a complete release.
 
 Start with:
 
@@ -54,6 +54,29 @@ visible door.
 NPC content is counted separately: the complete product contains **exactly 240 persistent
 named NPCs**, each with an authored identity, home, household, work state, deterministic
 schedule, relationships, needs, memories, dialogue, and context-aware behavior.
+
+## Live Farm controls
+
+The Farm tab loads an existing Valley save or creates a new canonical state, then places the
+third-person player at the saved farm coordinate. Camera-center raycasting drives the readable
+HUD and the same commands are available through its focusable buttons.
+
+| Action | Keyboard and mouse | Gamepad |
+|---|---|---|
+| Move | `WASD` or arrow keys | Left stick |
+| Look | Pointer or number-pad look keys | Right stick |
+| Use the targeted NPC, door, connector, station, fixture, or farm option | `E` or `Enter` | A |
+| Run the targeted farm action | `F` or primary click | X |
+| Select the next farming tool | `G` or secondary click | Y |
+| Jump | `Space` | B |
+| Recenter / change shoulder / zoom | `R` / `Q` / wheel or `+` and `-` | Right-stick press / right bumper / D-pad |
+
+Authored building and factory doors map deterministically onto the complete 400 factory and 300
+building interior graphs. Inside, visible doors and vertical connectors traverse real rooms;
+stations and fixtures execute their typed interaction contracts; and the persistent HUD exposes
+an accessible restroom-and-hand-washing route. Leaving through the entry door returns the player
+to the exact exterior position and facing. Switching shell tabs pauses the frame loop and writes
+the canonical save without replacing the active Farm tab.
 
 ## Independent product identity
 

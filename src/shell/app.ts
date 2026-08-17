@@ -91,7 +91,7 @@ import type { FarmTab } from './ui/farmtab'
  * -------------------------------------------------------------------------- */
 
 /** The product name. Never translated, never restyled by the funny level. */
-const APP_NAME = 'Sprout Hollow'
+const APP_NAME = 'Sprout Hollow Valley'
 
 /** The command palette chord, quoted to the reader as a parameter and never as prose. */
 const PALETTE_CHORD = 'Ctrl+Shift+F'
@@ -1138,7 +1138,7 @@ function paintBootError(root: HTMLElement, err: unknown): void {
   }
 
   try {
-    console.error('[sprout hollow]', err)
+    console.error('[sprout hollow valley]', err)
   } catch {
     // No console is not a reason to lose the panel below.
   }
@@ -1162,7 +1162,7 @@ function paintBootError(root: HTMLElement, err: unknown): void {
     window.setTimeout(() => retry.focus(), 0)
   } catch {
     // Even the panel failed. The document at least says why.
-    root.textContent = `Sprout Hollow could not start: ${message}`
+    root.textContent = `Sprout Hollow Valley could not start: ${message}`
   }
 }
 

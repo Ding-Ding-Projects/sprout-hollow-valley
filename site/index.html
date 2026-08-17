@@ -3,246 +3,346 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sprout Hollow — a cozy pixel farming game for the desktop</title>
+    <meta name="theme-color" content="#315d42" />
+    <title>Sprout Hollow Valley — a low-poly 3D farming life simulation</title>
     <meta
       name="description"
-      content="Sprout Hollow is a quiet pixel-art farming game for Windows, macOS and Linux. Clear the valley, work the soil, survive four seasons. Free and open source."
+      content="Sprout Hollow Valley is a Windows-only third-person low-poly 3D farming life simulation set in one authored open world."
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://github.com https://objects.githubusercontent.com; connect-src https://api.github.com https://raw.githubusercontent.com"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://github.com https://objects.githubusercontent.com; connect-src https://api.github.com"
     />
-    <meta property="og:title" content="Sprout Hollow" />
+    <meta property="og:title" content="Sprout Hollow Valley" />
     <meta
       property="og:description"
-      content="A quiet valley, a rusty hoe, and one year to make something of it."
+      content="Build a farm, join a community, and explore one authored low-poly 3D valley."
     />
     <meta property="og:type" content="website" />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <header class="hero">
-      <canvas id="wordmark" class="wordmark" aria-label="Sprout Hollow" role="img"></canvas>
-      <p class="tagline">A quiet valley, a rusty hoe, and one year to make something of it.</p>
+    <a
+      class="skip-link"
+      href="#main-content"
+      data-copy-en="Skip to main content"
+      data-copy-yue="跳去主要內容"
+    >Skip to main content</a>
 
-      <div class="downloads">
-        <a class="btn btn-primary" id="dl-win" href="https://github.com/Ding-Ding-Projects/farming-game/releases/latest">
-          <span class="btn-label">Download for Windows</span>
-          <span class="btn-sub" id="sub-win">Installer</span>
+    <header class="site-header" id="top">
+      <div class="topbar">
+        <a class="brand" href="#top" aria-label="Sprout Hollow Valley home">
+          <span class="brand-mark" aria-hidden="true">SHV</span>
+          <span>Sprout Hollow Valley</span>
         </a>
-        <a class="btn" href="https://github.com/Ding-Ding-Projects/farming-game#building-it-yourself">
-          <span class="btn-label">Build from source</span>
-          <span class="btn-sub">Node 22 and npm</span>
-        </a>
+
+        <nav class="primary-nav" aria-label="Primary navigation" data-aria-en="Primary navigation" data-aria-yue="主要導覽">
+          <a href="#vision" data-copy-en="Vision" data-copy-yue="山谷藍圖">Vision</a>
+          <a href="#content" data-copy-en="Content" data-copy-yue="內容規模">Content</a>
+          <a href="#interiors" data-copy-en="Interiors" data-copy-yue="室內空間">Interiors</a>
+          <a href="#identity" data-copy-en="Identity" data-copy-yue="獨立身份">Identity</a>
+          <a href="#documentation" data-copy-en="Docs" data-copy-yue="文件">Docs</a>
+        </nav>
+
+        <fieldset class="language-control" id="language-control" disabled>
+          <legend data-copy-en="Page language" data-copy-yue="網頁語言">Page language</legend>
+          <div class="segmented-control">
+            <label class="segment-option">
+              <input type="radio" name="language-mode" value="en" checked />
+              <span>English</span>
+            </label>
+            <label class="segment-option">
+              <input type="radio" name="language-mode" value="yue" />
+              <span lang="yue-Hant-HK">香港粵語</span>
+            </label>
+            <label class="segment-option">
+              <input type="radio" name="language-mode" value="bi" />
+              <span>EN + 粵</span>
+            </label>
+          </div>
+        </fieldset>
       </div>
-      <p class="release-line" id="release-line">Free and open source. No account, no telemetry.</p>
-      <p class="unsigned-note">
-        Windows only. The installer is not code-signed, so SmartScreen will warn on first
-        run. Every build is produced in public from the source in this repository, and you
-        can build it yourself instead.
-      </p>
+
+      <div class="hero">
+        <p
+          class="eyebrow"
+          data-copy-en="Windows-only · third-person · low-poly 3D"
+          data-copy-yue="Windows 專屬 · 第三身 · 低多邊形 3D"
+        >Windows-only · third-person · low-poly 3D</p>
+        <h1
+          data-copy-en="Grow one farm. Belong to a whole valley."
+          data-copy-yue="種好一個農場，成條山谷都係你嘅生活圈。"
+        >Grow one farm. Belong to a whole valley.</h1>
+        <p
+          class="lead"
+          data-copy-en="Sprout Hollow Valley is a local-first farming life simulation in one expanded, authored open world. Choose one of eight estates, work the land, enter every structure, and build lasting relationships with a persistent community."
+          data-copy-yue="《Sprout Hollow Valley》係本機優先嘅農莊生活模擬遊戲：一個精心設計、連成一體嘅開放山谷，八個莊園任你揀；落田、入屋、做生產，仲可以同一班有自己生活嘅街坊慢慢熟落。"
+        >Sprout Hollow Valley is a local-first farming life simulation in one expanded, authored open world. Choose one of eight estates, work the land, enter every structure, and build lasting relationships with a persistent community.</p>
+
+        <ul class="hero-facts" role="list">
+          <li><strong>8</strong> <span data-copy-en="authored estates" data-copy-yue="個精心設計莊園">authored estates</span></li>
+          <li><strong>5,000+</strong> <span data-copy-en="non-NPC definitions" data-copy-yue="項非 NPC 內容定義">non-NPC definitions</span></li>
+          <li><strong>700</strong> <span data-copy-en="enterable structures" data-copy-yue="座可以完整入內嘅建築">enterable structures</span></li>
+          <li><strong>240</strong> <span data-copy-en="persistent named NPCs" data-copy-yue="位持續生活嘅有名 NPC">persistent named NPCs</span></li>
+        </ul>
+
+        <div class="hero-actions">
+          <a
+            class="button button-primary"
+            id="download-windows"
+            href="https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/latest"
+          >
+            <span data-copy-en="Latest Windows release" data-copy-yue="最新 Windows 版本">Latest Windows release</span>
+            <small id="download-detail" data-copy-en="Open the published release, if available" data-copy-yue="如有已發佈版本，就會打開下載頁">Open the published release, if available</small>
+          </a>
+          <a
+            class="button button-tonal"
+            href="https://github.com/Ding-Ding-Projects/sprout-hollow-valley"
+          >
+            <span data-copy-en="Explore the source" data-copy-yue="睇吓原始碼">Explore the source</span>
+            <small>GitHub · MIT</small>
+          </a>
+          <button class="button button-tonal" id="open-command-palette" type="button" data-js-only hidden>
+            <span data-copy-en="Search this page" data-copy-yue="搜尋呢一頁">Search this page</span>
+            <small>Ctrl + Shift + F</small>
+          </button>
+        </div>
+
+        <p class="release-status" id="release-status" role="status" aria-live="polite">
+          Release information is unavailable until this page connects to GitHub. The release button remains a direct link.
+        </p>
+        <p
+          class="privacy-line"
+          data-copy-en="No runtime asset downloads. No account. No cloud save. No microtransactions."
+          data-copy-yue="唔會喺遊戲途中下載素材，唔使帳戶，冇雲端存檔，亦冇微交易。"
+        >No runtime asset downloads. No account. No cloud save. No microtransactions.</p>
+        <noscript>
+          <p class="noscript-notice">English content and every direct link remain available. Language switching and local page search require JavaScript.</p>
+        </noscript>
+      </div>
     </header>
 
-    <main>
-      <section class="dish" id="dish-section" aria-label="This release's code name" hidden>
-        <h2>This release is <span id="dish-name"></span></h2>
-        <a id="dish-link" href="https://github.com/Ding-Ding-Projects/dim-sum-photos">
-          <img id="dish-photo" alt="" width="360" height="360" loading="lazy" />
-        </a>
-        <p class="note">
-          Every release takes its code name from the public
-          <a href="https://github.com/Ding-Ding-Projects/dim-sum-photos">dim sum catalogue</a>.
-          The photograph is linked from there, never copied here.
-        </p>
+    <main id="main-content" tabindex="-1">
+      <section
+        class="section"
+        id="vision"
+        aria-labelledby="vision-heading"
+        data-command
+        data-search-title-en="Product vision"
+        data-search-title-yue="產品藍圖"
+        data-search-keywords="3D open world valley estates local first Windows farm"
+      >
+        <div class="section-heading">
+          <p class="eyebrow" data-copy-en="The complete-release contract" data-copy-yue="完整版本合約">The complete-release contract</p>
+          <h2 id="vision-heading" tabindex="-1" data-copy-en="One authored valley, built for a long life" data-copy-yue="一條用心打造、可以長住嘅山谷">One authored valley, built for a long life</h2>
+          <p
+            data-copy-en="The target is a connected third-person world with deterministic farming, production, community life, and recoverable consequences. It is not an endless generated map and it never depends on online-generated dialogue."
+            data-copy-yue="目標係一個連成一體嘅第三身世界，有可重現嘅耕作、生產同社區生活；結果可以補救。唔係無限生成地圖，對話亦唔會靠網上即場生成。"
+          >The target is a connected third-person world with deterministic farming, production, community life, and recoverable consequences. It is not an endless generated map and it never depends on online-generated dialogue.</p>
+        </div>
+
+        <div class="card-grid">
+          <article class="card status-card">
+            <span class="status-pill" data-copy-en="World" data-copy-yue="世界">World</span>
+            <h3 data-copy-en="Eight starting estates" data-copy-yue="八個起步莊園">Eight starting estates</h3>
+            <p data-copy-en="Meadow, forest, riverland, mountain, coastal, marsh, arid, and alpine estates share one expanded valley." data-copy-yue="草原、森林、河畔、山地、海岸、沼澤、旱地同高山莊園，共享同一條擴展山谷。">Meadow, forest, riverland, mountain, coastal, marsh, arid, and alpine estates share one expanded valley.</p>
+          </article>
+          <article class="card status-card">
+            <span class="status-pill" data-copy-en="Simulation" data-copy-yue="模擬">Simulation</span>
+            <h3 data-copy-en="Deterministic by design" data-copy-yue="由設計開始就可重現">Deterministic by design</h3>
+            <p data-copy-en="Seasons, weather, markets, production, schedules, and life events resolve from saved state rather than the wall clock." data-copy-yue="季節、天氣、市場、生產、行程同生活事件都由存檔狀態決定，唔會睇現實時間亂跳。">Seasons, weather, markets, production, schedules, and life events resolve from saved state rather than the wall clock.</p>
+          </article>
+          <article class="card status-card">
+            <span class="status-pill" data-copy-en="Community" data-copy-yue="社區">Community</span>
+            <h3 data-copy-en="Exactly 240 named NPCs" data-copy-yue="正正 240 位有名 NPC">Exactly 240 named NPCs</h3>
+            <p data-copy-en="Every resident has a home, work, relationships, routines, memories, and authored local conversation coverage." data-copy-yue="每位居民都有屋企、工作、關係、日程、記憶，同埋預先寫好嘅本機對話。">Every resident has a home, work, relationships, routines, memories, and authored local conversation coverage.</p>
+          </article>
+          <article class="card status-card">
+            <span class="status-pill" data-copy-en="Boundaries" data-copy-yue="界線">Boundaries</span>
+            <h3 data-copy-en="A complete local package" data-copy-yue="完整素材一次過放喺本機">A complete local package</h3>
+            <p data-copy-en="Models, animation, textures, materials, audio, rules, and dialogue ship with the application; play never requires an account." data-copy-yue="模型、動畫、紋理、材質、聲音、規則同對話都跟應用程式一齊提供；玩遊戲唔使開帳戶。">Models, animation, textures, materials, audio, rules, and dialogue ship with the application; play never requires an account.</p>
+          </article>
+        </div>
       </section>
 
-      <section class="shots" id="shots" aria-label="Screenshots">
-        <figure>
-          <img
-            src="./shots/farm-spring-midday.png"
-            alt="A spring farm at midday: tilled rows of crops at different growth stages beside a plank farmhouse, with rocks, fallen logs and a pond on the valley floor."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            Twenty by eleven tiles of valley floor. Watered soil reads darker than dry.
-            Everything here is drawn in code — there is not one image file in the game.
-          </figcaption>
-        </figure>
-        <figure>
-          <img
-            src="./shots/farm-evening.png"
-            alt="The same farm in the evening, washed in warm lantern light."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            The clock runs from six in the morning until two the next, and the light
-            follows it all the way down.
-          </figcaption>
-        </figure>
-        <figure>
-          <img
-            src="./shots/farm-winter.png"
-            alt="The farm in winter: pale frosted grass, drifting snow, and bare trees."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            Winter frosts the valley and strips the trees. Nothing grazes, so the hay you
-            cut in autumn is what gets your animals through.
-          </figcaption>
-        </figure>
+      <section
+        class="section"
+        id="content"
+        aria-labelledby="content-heading"
+        data-command
+        data-search-title-en="Content definition inventory"
+        data-search-title-yue="內容定義清單"
+        data-search-keywords="5000 crops trees animals factories buildings products recipes materials decorations"
+      >
+        <div class="section-heading">
+          <p class="eyebrow" data-copy-en="At least 5,000 unique non-NPC definitions" data-copy-yue="最少 5,000 項獨特非 NPC 定義">At least 5,000 unique non-NPC definitions</p>
+          <h2 id="content-heading" tabindex="-1" data-copy-en="A counted content promise" data-copy-yue="每一項都有數得清嘅承諾">A counted content promise</h2>
+          <p data-copy-en="The complete release must meet every category count below. These are registered gameplay definitions, not cosmetic name variants." data-copy-yue="完整版本要達到下面每一個分類數目。全部都係有玩法規則嘅註冊定義，唔係淨係改個名當新品。">The complete release must meet every category count below. These are registered gameplay definitions, not cosmetic name variants.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="content-table">
+            <caption data-copy-en="Required non-NPC content definitions for the complete release" data-copy-yue="完整版本所需嘅非 NPC 內容定義">Required non-NPC content definitions for the complete release</caption>
+            <thead>
+              <tr>
+                <th scope="col" data-copy-en="Category" data-copy-yue="分類">Category</th>
+                <th scope="col" data-copy-en="Exact count" data-copy-yue="確實數目">Exact count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row" data-copy-en="Field crops" data-copy-yue="田間作物">Field crops</th><td>500</td></tr>
+              <tr><th scope="row" data-copy-en="Trees, orchard plants, bushes, and vines" data-copy-yue="樹木、果園植物、灌木同藤本植物">Trees, orchard plants, bushes, and vines</th><td>250</td></tr>
+              <tr><th scope="row" data-copy-en="Animal species" data-copy-yue="動物物種">Animal species</th><td>150</td></tr>
+              <tr><th scope="row" data-copy-en="Factories and production facilities" data-copy-yue="工廠同生產設施">Factories and production facilities</th><td>400</td></tr>
+              <tr><th scope="row" data-copy-en="Non-factory buildings" data-copy-yue="非工廠建築">Non-factory buildings</th><td>300</td></tr>
+              <tr><th scope="row" data-copy-en="Sellable products" data-copy-yue="可出售產品">Sellable products</th><td>1,500</td></tr>
+              <tr><th scope="row" data-copy-en="Production recipes" data-copy-yue="生產配方">Production recipes</th><td>1,200</td></tr>
+              <tr><th scope="row" data-copy-en="Raw-material types" data-copy-yue="原材料類型">Raw-material types</th><td>300</td></tr>
+              <tr><th scope="row" data-copy-en="Functional decorations, paths, fences, signs, lights, and outdoor objects" data-copy-yue="有功能嘅裝飾、路徑、圍欄、招牌、燈光同戶外物件">Functional decorations, paths, fences, signs, lights, and outdoor objects</th><td>400</td></tr>
+            </tbody>
+            <tfoot>
+              <tr><th scope="row" data-copy-en="Required total" data-copy-yue="所需總數">Required total</th><td>5,000</td></tr>
+            </tfoot>
+          </table>
+        </div>
       </section>
 
-      <section aria-labelledby="inside-heading">
-        <h2 id="inside-heading">Every building is a room you walk into</h2>
-        <p>
-          A coop is not a menu. Walk up to its door, press the same button you use on a
-          crop row, and you are inside it &mdash; a nest per bird along the wall, a feed
-          trough, the hay, and whoever lives there standing in their pens. Using a pen
-          does the most useful thing that is pending: collect what is ready, then feed,
-          then pet. One button, and never a submenu.
-        </p>
+      <section
+        class="section"
+        id="interiors"
+        aria-labelledby="interiors-heading"
+        data-command
+        data-search-title-en="Fully enterable structures"
+        data-search-title-yue="全部可以入內嘅建築"
+        data-search-keywords="700 structures doors rooms interiors restrooms hand washing stations"
+      >
+        <div class="section-heading">
+          <p class="eyebrow" data-copy-en="All 700 structures are fully enterable" data-copy-yue="700 座建築全部可以完整入內">All 700 structures are fully enterable</p>
+          <h2 id="interiors-heading" tabindex="-1" data-copy-en="No painted doors and no empty façades" data-copy-yue="冇假門，亦冇得個外殼嘅建築">No painted doors and no empty façades</h2>
+          <p data-copy-en="Every factory and non-factory building has a usable entrance, streamed interior, complete room graph, and a real destination for every visible door. A locked door must explain why and provide an eventual access path." data-copy-yue="每間工廠同普通建築都有可用入口、獨立載入嘅室內空間、完整房間網絡；每一道見到嘅門都有真實目的地。鎖咗嘅門要講清楚原因，亦要有日後入到去嘅方法。">Every factory and non-factory building has a usable entrance, streamed interior, complete room graph, and a real destination for every visible door. A locked door must explain why and provide an eventual access path.</p>
+        </div>
+
+        <ul class="boundary-list" role="list">
+          <li><strong data-copy-en="Purposeful rooms." data-copy-yue="房房有用途。">Purposeful rooms.</strong> <span data-copy-en="Homes, shops, workplaces, civic buildings, farms, mines, and venues include the secondary rooms their work and residents need." data-copy-yue="住宅、商店、工作場所、公共建築、農場、礦場同場館，都有配合工作同居民需要嘅附屬房間。">Homes, shops, workplaces, civic buildings, farms, mines, and venues include the secondary rooms their work and residents need.</span></li>
+          <li><strong data-copy-en="Functional stations." data-copy-yue="工作站真係用得。">Functional stations.</strong> <span data-copy-en="Intake, storage, preparation, production, quality, shipping, maintenance, safety, and service stations have real interactions and saved state." data-copy-yue="收貨、儲存、準備、生產、品質、出貨、維修、安全同服務工作站都有真實互動同存檔狀態。">Intake, storage, preparation, production, quality, shipping, maintenance, safety, and service stations have real interactions and saved state.</span></li>
+          <li><strong data-copy-en="Sanitation everywhere." data-copy-yue="周圍都有合適衛生設施。">Sanitation everywhere.</strong> <span data-copy-en="Every structure includes an accessible restroom and hand-washing route appropriate to its size and use." data-copy-yue="每座建築都有配合規模同用途、而且無障礙可達嘅洗手間同洗手路線。">Every structure includes an accessible restroom and hand-washing route appropriate to its size and use.</span></li>
+          <li><strong data-copy-en="People use the space." data-copy-yue="居民真係會用啲空間。">People use the space.</strong> <span data-copy-en="Staffing, opening hours, visitor behaviour, schedules, storage, utilities, and navigation make interiors part of the simulation." data-copy-yue="員工、營業時間、訪客行為、日程、儲物、設施同導航，令室內空間真正成為模擬一部分。">Staffing, opening hours, visitor behaviour, schedules, storage, utilities, and navigation make interiors part of the simulation.</span></li>
+        </ul>
       </section>
 
-      <section class="shots" aria-label="Screenshots of building interiors">
-        <figure>
-          <img
-            src="./shots/inside-coop.png"
-            alt="Inside a coop: chickens, a duck and a turkey standing in strawed pens along the wall, a hanging lamp overhead, a feed trough and a nest box."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            Four birds, four pens, and an egg waiting in the straw. The room shows every
-            place you have paid for, filled or not.
-          </figcaption>
-        </figure>
-        <figure>
-          <img
-            src="./shots/inside-barn.png"
-            alt="Inside a barn: cows, a goat and sheep in their stalls over a board floor scattered with straw."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            The trough feeds the whole barn in one go, and stops at the animal you cannot
-            afford rather than feeding the rest for free.
-          </figcaption>
-        </figure>
-        <figure>
-          <img
-            src="./shots/inside-bakery.png"
-            alt="Inside the bakery: a chequered tile floor and three workbenches, one working and one holding finished output."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            Production buildings are workrooms: one bench per machine standing on the
-            farm, so a run of jobs is queued in one place.
-          </figcaption>
-        </figure>
-        <figure>
-          <img
-            src="./shots/inside-farmhouse.png"
-            alt="Inside the farmhouse: a bed with a quilt, a strapped chest and a standing desk with the order ledger open on it."
-            width="1280"
-            height="704"
-            loading="lazy"
-          />
-          <figcaption>
-            Home. The bed turns in for the night, the chest is your bag, and the ledger
-            is where the orders are standing.
-          </figcaption>
-        </figure>
+      <section
+        class="section"
+        id="identity"
+        aria-labelledby="identity-heading"
+        data-command
+        data-search-title-en="Independent product identity and privacy"
+        data-search-title-yue="獨立產品身份同私隱"
+        data-search-keywords="identity application data save updates privacy account cloud microtransactions repository"
+      >
+        <div class="section-heading">
+          <p class="eyebrow" data-copy-en="Independent from Sprout Hollow" data-copy-yue="同《Sprout Hollow》完全分開">Independent from Sprout Hollow</p>
+          <h2 id="identity-heading" tabindex="-1" data-copy-en="A separate application, save, and update path" data-copy-yue="應用程式、存檔同更新路徑各自獨立">A separate application, save, and update path</h2>
+          <p data-copy-en="Sprout Hollow Valley preserves the original project's MIT attribution while using its own application ID, user-data directory, fresh save format, executable identity, update feed, repository, and release history. Original installs and saves stay untouched." data-copy-yue="《Sprout Hollow Valley》保留原作 MIT 授權署名，同時用自己嘅應用程式 ID、使用者資料目錄、全新存檔格式、執行檔身份、更新來源、程式庫同發佈紀錄。原有安裝同存檔唔會俾佢掂。">Sprout Hollow Valley preserves the original project's MIT attribution while using its own application ID, user-data directory, fresh save format, executable identity, update feed, repository, and release history. Original installs and saves stay untouched.</p>
+        </div>
+
+        <div class="card-grid">
+          <article class="card">
+            <h3 data-copy-en="Local by default" data-copy-yue="預設留喺本機">Local by default</h3>
+            <p data-copy-en="No online account, cloud save, telemetry, analytics, advertising, paid content, or microtransactions are part of the first complete release." data-copy-yue="首個完整版本冇網上帳戶、雲端存檔、遙測、分析、廣告、付費內容或者微交易。">No online account, cloud save, telemetry, analytics, advertising, paid content, or microtransactions are part of the first complete release.</p>
+          </article>
+          <article class="card">
+            <h3 data-copy-en="Bundled assets" data-copy-yue="素材全部跟程式提供">Bundled assets</h3>
+            <p data-copy-en="The game does not fetch models, textures, audio, animation, or dialogue while you play. Release checks use GitHub only when you ask the updater." data-copy-yue="玩緊嗰陣唔會下載模型、紋理、聲音、動畫或者對話。只有你叫更新器檢查版本時先會用 GitHub。">The game does not fetch models, textures, audio, animation, or dialogue while you play. Release checks use GitHub only when you ask the updater.</p>
+          </article>
+          <article class="card">
+            <h3 data-copy-en="This page stays modest" data-copy-yue="呢個網頁都好克制">This page stays modest</h3>
+            <p data-copy-en="No trackers, analytics, advertising, cookies, or external fonts. The page stores only your language choice and contacts GitHub to enhance the static release link." data-copy-yue="冇追蹤器、分析、廣告、Cookie 或外置字體。網頁只會記住你揀嘅語言，並聯絡 GitHub 去補充靜態版本連結。">No trackers, analytics, advertising, cookies, or external fonts. The page stores only your language choice and contacts GitHub to enhance the static release link.</p>
+          </article>
+        </div>
       </section>
 
-      <section class="panels" aria-label="What is in the game">
-        <article class="panel">
-          <h2>Four real seasons</h2>
-          <p>
-            Twelve crops, each with its own season, growth time and payoff. Winter is not a
-            dead month, but it is a lean one. Anything still in the ground when the season
-            turns is lost.
-          </p>
-        </article>
-        <article class="panel">
-          <h2>Water it or lose it</h2>
-          <p>
-            Crops advance only on the days they are watered. Miss three in a row after a
-            sprout appears and it withers. Rain does the work for you; sprinklers do it every
-            day, if you can afford them.
-          </p>
-        </article>
-        <article class="panel">
-          <h2>Energy is the real currency</h2>
-          <p>
-            Every swing of the hoe costs energy and ten minutes of daylight. Push past either
-            and the farmer is carried home, with a bill for it in the morning.
-          </p>
-        </article>
-        <article class="panel">
-          <h2>Drawn and sung in code</h2>
-          <p>
-            No sprite sheets, no font files, no audio files, no runtime dependencies. The
-            tiles, the crops, the farmer, the 5&times;7 typeface and every sound are generated
-            when the game starts.
-          </p>
-        </article>
-      </section>
+      <section
+        class="section"
+        id="documentation"
+        aria-labelledby="documentation-heading"
+        data-command
+        data-search-title-en="Documentation and completeness"
+        data-search-title-yue="文件同完整度"
+        data-search-keywords="docs plan design changelog inventory completeness accessibility localization evidence"
+      >
+        <div class="section-heading">
+          <p class="eyebrow" data-copy-en="Public plans and evidence" data-copy-yue="公開計劃同證據">Public plans and evidence</p>
+          <h2 id="documentation-heading" tabindex="-1" data-copy-en="Trace the promise to its implementation" data-copy-yue="每個承諾都要追得到實作">Trace the promise to its implementation</h2>
+          <p data-copy-en="The public product inventory records the 5,000-definition and 700-structure targets alongside every shared user-facing contract. A row is complete only when its implementation, localized copy, documentation, persistence where needed, focused checks, built interaction evidence, and real capture evidence all exist." data-copy-yue="公開產品清單會連同所有共用介面合約，一齊記錄 5,000 項內容定義同 700 座建築目標。每一行要有實作、翻譯、文件、需要時嘅持久化、聚焦檢查、成品互動證據同真實畫面證據，先可以叫完成。">The public product inventory records the 5,000-definition and 700-structure targets alongside every shared user-facing contract. A row is complete only when its implementation, localized copy, documentation, persistence where needed, focused checks, built interaction evidence, and real capture evidence all exist.</p>
+        </div>
 
-      <section class="controls" aria-label="Controls">
-        <h2>Controls</h2>
-        <table>
-          <tbody>
-            <tr><th scope="row">Arrows / WASD</th><td>Walk, and face that way</td></tr>
-            <tr><th scope="row">Space / Enter</th><td>Use what is ahead: swing the tool, open a machine, or go through a door</td></tr>
-            <tr><th scope="row">Esc</th><td>Leave a room, or close the top panel</td></tr>
-            <tr><th scope="row">L</th><td>Inside an animal building, its occupants as a list</td></tr>
-            <tr><th scope="row">1 &ndash; 7</th><td>Hoe, can, seeds, hand, axe, sprinkler, fertilizer</td></tr>
-            <tr><th scope="row">Q / E</th><td>Cycle the selected seed</td></tr>
-            <tr><th scope="row">B</th><td>Shop</td></tr>
-            <tr><th scope="row">I</th><td>Bag</td></tr>
-            <tr><th scope="row">N</th><td>Sleep</td></tr>
-            <tr><th scope="row">H / F1</th><td>Help</td></tr>
-            <tr><th scope="row">M</th><td>Mute</td></tr>
-          </tbody>
-        </table>
-        <p class="note">Playable start to finish from the keyboard. The mouse is optional.</p>
-      </section>
-
-      <section class="build" aria-label="Build it yourself">
-        <h2>Build it yourself</h2>
-        <pre><code>git clone https://github.com/Ding-Ding-Projects/farming-game.git
-cd sprout-hollow
-npm install
-npm start</code></pre>
-        <p class="note">
-          Electron, TypeScript and Vite. <code>npm test</code> runs the rule-layer suite,
-          <code>npm run package</code> produces the installer for your platform.
-        </p>
+        <div class="link-card-grid">
+          <a class="link-card" href="../PLAN.md">
+            <strong data-copy-en="Implementation plan" data-copy-yue="實作計劃">Implementation plan</strong>
+            <span data-copy-en="Locked product decisions, counts, architecture, and release acceptance." data-copy-yue="鎖定產品決定、數量、架構同發佈驗收。">Locked product decisions, counts, architecture, and release acceptance.</span>
+          </a>
+          <a class="link-card" href="../docs/VALLEY-PRODUCT.md">
+            <strong data-copy-en="Valley product inventory" data-copy-yue="山谷產品清單">Valley product inventory</strong>
+            <span data-copy-en="Per-surface requirements, ownership, and completeness evidence." data-copy-yue="逐個介面列出要求、負責位置同完整度證據。">Per-surface requirements, ownership, and completeness evidence.</span>
+          </a>
+          <a class="link-card" href="../README.md">
+            <strong data-copy-en="Project overview" data-copy-yue="專案概覽">Project overview</strong>
+            <span data-copy-en="Repository entry point, development boundaries, and current status." data-copy-yue="程式庫入口、開發界線同目前狀態。">Repository entry point, development boundaries, and current status.</span>
+          </a>
+          <a class="link-card" href="../DESIGN.md">
+            <strong data-copy-en="Design language" data-copy-yue="設計語言">Design language</strong>
+            <span data-copy-en="Material 3 foundation, farm theme, interaction, and accessibility direction." data-copy-yue="Material 3 基礎、農莊主題、互動同無障礙方向。">Material 3 foundation, farm theme, interaction, and accessibility direction.</span>
+          </a>
+          <a class="link-card" href="../CHANGELOG.md">
+            <strong data-copy-en="Changelog" data-copy-yue="更新紀錄">Changelog</strong>
+            <span data-copy-en="A public record of product changes." data-copy-yue="公開記錄產品改動。">A public record of product changes.</span>
+          </a>
+          <a class="link-card" href="https://github.com/Ding-Ding-Projects/sprout-hollow-valley">
+            <strong data-copy-en="Source repository" data-copy-yue="原始碼程式庫">Source repository</strong>
+            <span>Ding-Ding-Projects/sprout-hollow-valley</span>
+          </a>
+        </div>
       </section>
     </main>
 
-    <footer>
+    <footer class="site-footer">
       <p>
-        <a href="https://github.com/Ding-Ding-Projects/farming-game">Source on GitHub</a>
-        &nbsp;&middot;&nbsp;
-        <a href="https://github.com/Ding-Ding-Projects/farming-game/releases">All releases</a>
-        &nbsp;&middot;&nbsp;
-        MIT licensed
+        <strong>Sprout Hollow Valley</strong>
+        <span aria-hidden="true"> · </span>
+        <span data-copy-en="Windows-only · free and open source · MIT licensed" data-copy-yue="Windows 專屬 · 免費開源 · MIT 授權">Windows-only · free and open source · MIT licensed</span>
       </p>
-      <p class="quiet">No trackers, no analytics, no cookies. This page talks to GitHub only to find the newest release.</p>
+      <nav aria-label="Footer navigation" data-aria-en="Footer navigation" data-aria-yue="頁尾導覽">
+        <a href="https://github.com/Ding-Ding-Projects/sprout-hollow-valley" data-copy-en="Source" data-copy-yue="原始碼">Source</a>
+        <a href="https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases" data-copy-en="Releases" data-copy-yue="版本">Releases</a>
+        <a href="../docs/VALLEY-PRODUCT.md" data-copy-en="Product inventory" data-copy-yue="產品清單">Product inventory</a>
+        <a href="#top" data-copy-en="Back to top" data-copy-yue="返到頂部">Back to top</a>
+      </nav>
     </footer>
 
+    <dialog class="command-palette" id="command-palette" aria-labelledby="palette-title">
+      <div class="palette-header">
+        <div>
+          <p class="eyebrow" data-copy-en="Local page search" data-copy-yue="本頁搜尋">Local page search</p>
+          <h2 id="palette-title" data-copy-en="Go to a section" data-copy-yue="跳去一個章節">Go to a section</h2>
+        </div>
+        <button class="dialog-close" id="close-command-palette" type="button" aria-label="Close search" data-aria-en="Close search" data-aria-yue="關閉搜尋">×</button>
+      </div>
+      <div class="palette-controls">
+        <label class="palette-search" for="palette-query">
+          <span data-copy-en="Search this page" data-copy-yue="搜尋呢一頁">Search this page</span>
+          <input id="palette-query" type="search" autocomplete="off" spellcheck="false" placeholder="Try “interiors” or “700”" data-placeholder-en="Try “interiors” or “700”" data-placeholder-yue="試吓「室內」或者「700」" />
+        </label>
+        <label class="regex-toggle">
+          <input id="palette-regex" type="checkbox" />
+          <span data-copy-en="Use regular expression" data-copy-yue="使用正規表示式">Use regular expression</span>
+        </label>
+      </div>
+      <p class="palette-status" id="palette-status" role="status" aria-live="polite"></p>
+      <ol class="palette-results" id="palette-results"></ol>
+    </dialog>
+
+    <p class="visually-hidden" id="language-status" role="status" aria-live="polite"></p>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

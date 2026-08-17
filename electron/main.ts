@@ -3,6 +3,21 @@ import type { IpcMainInvokeEvent, WebContents } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { runCapture, wantsCapture } from './capture'
+import {
+  APP_ID,
+  IPC_CHANNELS,
+  PRODUCT_NAME,
+  SAVE_FILENAME,
+  USER_DATA_DIRECTORY_NAME,
+} from './identity'
+
+// This product is intentionally installed beside Sprout Hollow, never over it. Resolve
+// the stable data root explicitly instead of inheriting Electron's package-name default.
+app.setName(PRODUCT_NAME)
+const userDataPath = path.join(app.getPath('appData'), USER_DATA_DIRECTORY_NAME)
+fs.mkdirSync(userDataPath, { recursive: true })
+app.setPath('userData', userDataPath)
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
 
 /** 4x the 320x224 logical framebuffer, and 2x as the floor. */
 const WINDOW_W = 1280
@@ -27,7 +42,7 @@ const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? ''
 const MAX_SAVE_BYTES = 4 * 1024 * 1024
 
 function saveFile(): string {
-  return path.join(app.getPath('userData'), 'save.json')
+  return path.join(app.getPath('userData'), SAVE_FILENAME)
 }
 
 async function readSaveFile(): Promise<string | null> {
@@ -114,7 +129,7 @@ function harden(contents: WebContents): void {
  */
 function pushMaximizedState(win: BrowserWindow): void {
   if (win.isDestroyed()) return
-  win.webContents.send('window:maximized-changed', win.isMaximized())
+  win.webContents.send(IPC_CHANNELS.windowMaximizedChanged, win.isMaximized())
 }
 
 function createWindow(): void {
@@ -125,7 +140,7 @@ function createWindow(): void {
     minHeight: MIN_H,
     useContentSize: true,
     backgroundColor: INK,
-    title: 'Sprout Hollow',
+    title: PRODUCT_NAME,
     // Frameless: src/shell/ui/titlebar.ts draws the bar and owns the controls.
     frame: false,
     autoHideMenuBar: true,
@@ -169,14 +184,14 @@ function createWindow(): void {
 }
 
 function registerSaveHandlers(): void {
-  ipcMain.handle('save:read', () => readSaveFile())
-  ipcMain.handle('save:write', (_event, json: unknown) => {
+  ipcMain.handle(IPC_CHANNELS.saveRead, () => readSaveFile())
+  ipcMain.handle(IPC_CHANNELS.saveWrite, (_event, json: unknown) => {
     if (typeof json !== 'string' || Buffer.byteLength(json, 'utf8') > MAX_SAVE_BYTES) {
       return Promise.resolve(false)
     }
     return writeSaveFile(json)
   })
-  ipcMain.handle('save:clear', () => clearSaveFile())
+  ipcMain.handle(IPC_CHANNELS.saveClear, () => clearSaveFile())
 }
 
 /** The window that asked, or null if it has already gone away mid-call. */
@@ -190,12 +205,12 @@ function senderWindow(event: IpcMainInvokeEvent): BrowserWindow | null {
  * asked, never on a window it was handed, so a renderer cannot reach another window.
  */
 function registerWindowHandlers(): void {
-  ipcMain.handle('window:minimize', (event: IpcMainInvokeEvent) => {
+  ipcMain.handle(IPC_CHANNELS.windowMinimize, (event: IpcMainInvokeEvent) => {
     const win = senderWindow(event)
     if (win !== null && win.isMinimizable()) win.minimize()
   })
 
-  ipcMain.handle('window:maximize', (event: IpcMainInvokeEvent) => {
+  ipcMain.handle(IPC_CHANNELS.windowMaximize, (event: IpcMainInvokeEvent) => {
     const win = senderWindow(event)
     if (win === null) return false
     if (win.isMaximized()) win.unmaximize()
@@ -203,12 +218,12 @@ function registerWindowHandlers(): void {
     return win.isMaximized()
   })
 
-  ipcMain.handle('window:close', (event: IpcMainInvokeEvent) => {
+  ipcMain.handle(IPC_CHANNELS.windowClose, (event: IpcMainInvokeEvent) => {
     const win = senderWindow(event)
     if (win !== null) win.close()
   })
 
-  ipcMain.handle('window:isMaximized', (event: IpcMainInvokeEvent) => {
+  ipcMain.handle(IPC_CHANNELS.windowIsMaximized, (event: IpcMainInvokeEvent) => {
     const win = senderWindow(event)
     return win !== null && win.isMaximized()
   })

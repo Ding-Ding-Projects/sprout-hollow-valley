@@ -4,7 +4,7 @@
  * One versioned record — settings, appearance, tabs and history — read through
  * `window.sprout` when the Electron preload is present and `localStorage` otherwise,
  * exactly the way `src/renderer/bridge.ts` detects its host. It uses its own storage key
- * (`sprout-hollow.shell`) so the game save and the shell record can never collide, and its
+ * (`sprout-hollow-valley.shell.v1`) so the game save and the shell record can never collide, and its
  * own bridge channels, so a host that only knows the three save channels still works.
  *
  * Two promises this module keeps:
@@ -614,10 +614,10 @@ export function sanitizePersisted(raw: unknown): Persisted {
 /* --------------------------------------------------------------------------- storage */
 
 /**
- * The shell's own key. `src/renderer/bridge.ts` owns `sprout-hollow.save`; these two must
+ * The shell's own key. The desktop host owns `sprout-hollow-valley.save.v1.json`; these two must
  * never meet.
  */
-export const SHELL_STORAGE_KEY = 'sprout-hollow.shell'
+export const SHELL_STORAGE_KEY = 'sprout-hollow-valley.shell.v1'
 
 /**
  * The optional channels a host may add for the shell record. `electron/preload.ts` exposes

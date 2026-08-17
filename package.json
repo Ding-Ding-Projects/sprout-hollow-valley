@@ -1,9 +1,17 @@
 {
-  "name": "sprout-hollow",
+  "name": "sprout-hollow-valley",
   "version": "1.2.0",
-  "description": "A cozy pixel-art farming game for the desktop. Clear the valley, work the soil, survive four seasons.",
+  "description": "A cozy third-person low-poly 3D farming and life-simulation adventure across an authored open valley.",
   "license": "MIT",
   "author": "DingDingChae",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ding-Ding-Projects/sprout-hollow-valley.git"
+  },
+  "homepage": "https://github.com/Ding-Ding-Projects/sprout-hollow-valley#readme",
+  "bugs": {
+    "url": "https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -32,8 +40,8 @@
     "vitest": "^2.1.4"
   },
   "build": {
-    "appId": "uk.dewhui.sprouthollow",
-    "productName": "Sprout Hollow",
+    "appId": "com.dingdingprojects.sprouthollowvalley",
+    "productName": "Sprout Hollow Valley",
     "directories": {
       "output": "release"
     },
@@ -43,6 +51,7 @@
       "package.json"
     ],
     "win": {
+      "executableName": "SproutHollowValley",
       "target": [
         "squirrel"
       ],
@@ -51,9 +60,17 @@
       "verifyUpdateCodeSignature": false
     },
     "squirrelWindows": {
-      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "artifactName": "Sprout-Hollow-Valley-Setup-${version}.${ext}",
       "msi": false
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Ding-Ding-Projects",
+        "repo": "sprout-hollow-valley",
+        "releaseType": "release"
+      }
+    ],
     "forceCodeSigning": false
   },
   "dependencies": {

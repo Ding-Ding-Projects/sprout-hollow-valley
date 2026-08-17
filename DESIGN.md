@@ -1,186 +1,228 @@
-# Sprout Hollow — art & design direction
+# Sprout Hollow Valley design direction
 
-The single source of truth for how the game looks, sounds and feels. Read this before
-touching any rendering or UI code.
+This document defines the intended look, interaction model, and accessibility baseline for
+Sprout Hollow Valley. It applies independently to the Windows application shell, every
+in-application page, and the public website. The third-person world direction also applies to
+the future playable 3D surface.
 
-## 1. Pitch
+The current repository is a foundation. Its inherited farming rules and desktop mechanisms
+provide useful starting material, while the low-poly world, complete content catalogue,
+enterable structures, and life simulation remain planned work. A design contract describes
+the target; it is not evidence that every target is implemented.
 
-A quiet, unhurried farm at the bottom of a wooded valley. You have one season's savings,
-a rusty hoe and a plot full of rocks. Clear it, work it, and see what the year gives back.
+## 1. Product character
 
-No timers pushing you, no fail state, no menus that look like a settings app. The whole
-screen is the game.
+Sprout Hollow Valley is a warm, legible farm and town rather than a miniature imitation of a
+real landscape. Materials have broad planes, silhouettes are readable at a distance, and
+important objects are distinguished by shape, label, and state as well as colour. The mood is
+hopeful and unhurried without making information vague or controls ornamental.
 
-## 2. The one rule
+The visual language combines a low-poly 3D world with an accessible farm-themed Material 3
+shell. The website uses the same named tokens and component anatomy, but remains a complete,
+responsive surface in its own right. Neither surface delegates accessibility, language,
+appearance, search, navigation, or status communication to the other.
 
-**Everything is drawn on one canvas at a fixed low resolution and upscaled with whole
-numbers.** No DOM widgets, no CSS components, no design-system chrome. If a thing appears
-on screen, it is pixels the game drew.
+## 2. Material 3 foundation
 
-- Logical framebuffer: **320 × 224**, always.
-- Tiles are **16 × 16**. Sprites are drawn on integer pixel coordinates. Never sub-pixel.
-- Scale is the largest integer that fits the window (min 2). Letterbox the remainder with
-  the deep valley background. Never a fractional scale, never smoothing.
-- Text is a hand-built **5 × 7 bitmap font** (`src/engine/font.ts`). No web fonts. Caps-led,
-  because that is what fits and it reads like the era we are aiming at.
+### 2.1 Colour tokens
 
-## 3. Palette
+Components consume semantic roles, never raw palette values. Theme generation may change the
+reference palette while preserving each role relationship.
 
-A dusk-leaning, low-saturation set. Warm light, cool shadow — the contrast between the two
-is what makes the farm feel like evening even at noon.
+| Reference role | Light seed | Dark seed | Intent |
+|---|---:|---:|---|
+| Primary | `#386A20` | `#9CD67D` | Growth, primary action, active navigation |
+| Secondary | `#55624C` | `#BCCBAD` | Tools, supporting actions, secondary emphasis |
+| Tertiary | `#19686A` | `#80D4D5` | Water, information, selected contextual content |
+| Error | `#BA1A1A` | `#FFB4AB` | Failure, danger, and irreversible-action warnings |
+| Neutral | `#5F5F58` | `#C8C7BE` | Text, borders, quiet controls, and structure |
+| Neutral variant | `#5B6056` | `#C4C8BB` | Surface containers and dividers |
 
-| Role | Hex | Used for |
-|---|---|---|
-| `ink` | `#1b1a24` | Outlines, text on light, the letterbox |
-| `shadow` | `#2f2b3d` | Panel shadow, night tint, tile crevices |
-| `bark` | `#4a3a34` | Wood UI frames, tree trunks, tilled crevice |
-| `soil` | `#6b4a34` | Tilled earth |
-| `soilWet` | `#43291f` | Watered earth |
-| `grass` | `#4f7a3a` | Ground cover |
-| `grassLit` | `#6d9c46` | Grass highlight, leaf tops |
-| `leaf` | `#2f5c33` | Plant foliage, canopy shade |
-| `parchment` | `#e8d9b0` | Panel interiors, primary text on dark |
-| `cream` | `#f6efd8` | Highlights, selected text |
-| `lantern` | `#f2a541` | Gold, energy, the "warm" accent, cursor |
-| `berry` | `#c1504a` | Danger, withered crops, spend confirmation |
-| `sky` | `#8fb8c9` | Water, day sky, cool accent |
-| `dusk` | `#5c5470` | Evening overlay, disabled state |
+The implementation derives the Material 3 roles `primary`, `on-primary`,
+`primary-container`, `on-primary-container`, corresponding secondary and tertiary roles,
+`surface`, `surface-container-*`, `on-surface`, `on-surface-variant`, `outline`,
+`outline-variant`, `inverse-*`, and error roles from these seeds. Seasonal themes may shift
+reference hues, but must not change the meaning of a semantic role.
 
-Accents are **lantern** (warm, positive, currency) and **sky** (cool, informational).
-`berry` is reserved for loss — never decorative.
+Ordinary text targets at least 4.5:1 contrast; large text, focus indicators, control
+boundaries, and meaningful graphics target at least 3:1. Disabled styling may be quieter but
+must remain identifiable from its label and state. Success, warning, selection, freshness,
+quality, and ownership are never communicated by colour alone.
 
-## 4. Light
+### 2.2 Typography
 
-The clock (6:00 AM → 2:00 AM) drives a full-screen tint composited over the world layer only,
-never over the HUD:
+Use a local system-font stack headed by Segoe UI Variable and Segoe UI; no remote font is
+required to understand or operate the product. The type scale follows Material 3 roles:
 
-- Morning 6–10: faint `sky` wash, 6% — cold and early.
-- Midday 10–17: no tint. This is the only time the palette shows true.
-- Evening 17–20: `lantern` 10% — the good hour.
-- Night 20–2: `shadow` up to 38%, easing in. Lit tiles near the house keep a warm pool.
+| Role | Size / line height | Typical use |
+|---|---:|---|
+| Display small | 36 / 44 px | Landing-page hero and rare major milestones |
+| Headline medium | 28 / 36 px | Page titles |
+| Headline small | 24 / 32 px | Major sections and dialogs |
+| Title large | 22 / 28 px | Cards, panels, and building headings |
+| Title medium | 16 / 24 px | Navigation and dense group headings |
+| Body large | 16 / 24 px | Default prose and form values |
+| Body medium | 14 / 20 px | Supporting copy and tables |
+| Label large | 14 / 20 px | Buttons, tabs, and input labels |
+| Label medium | 12 / 16 px | Metadata when a larger role would obstruct scanning |
 
-Rain desaturates the world 15% and adds falling streaks; snow adds slow drift and a `cream`
-dusting on every tile top edge.
+Text zoom and Windows display scaling must reflow the layout rather than clip or overlap it.
+Cantonese and bilingual copy use system glyph coverage and the same semantic type roles.
 
-## 5. Motion
+### 2.3 Shape, elevation, and spacing
 
-Movement is grid-locked but never snaps: the farmer tweens between tiles over 180 ms with a
-two-frame walk bob. Everything else moves on a **6-frame-per-second** sub-clock even though
-the game renders at 60 — plants sway, water shimmers and the cursor pulses on that slower
-beat, so the world reads as animation, not interpolation.
+Farm character comes from colour, illustration, and restrained texture—not from breaking
+component anatomy.
 
-Feedback is short and physical: tilling kicks four dirt specks, harvesting pops the crop up
-2 px before it flies to the HUD, a sale flashes the gold counter once. Nothing eases longer
-than 250 ms.
+- Shape tokens are 0 px for full-bleed tables, 8 px for small controls, 12 px for cards and
+  menus, 16 px for prominent containers, and 28 px for large dialogs and hero panels.
+- A 4 px spacing base governs padding and gaps, with common intervals of 4, 8, 12, 16, 24,
+  32, and 48 px.
+- Elevation levels 0–5 use Material 3 tonal surface separation first and a restrained shadow
+  second. More elevation means temporary or modal prominence, not decoration.
+- Dividers and outlines use semantic outline roles. Texture never crosses text, controls,
+  focus rings, or data graphics.
 
-Honour `prefers-reduced-motion`: keep tweens, drop particles, screen shake and the sway.
+### 2.4 States and feedback
 
-## 6. UI
+Every interactive component exposes default, hover, keyboard-focus, pressed, selected,
+dragged, loading, disabled, error, and success states where those states are meaningful.
+State layers use the current content colour at approximately 8% for hover, 12% for focus and
+pressed, and 16% for dragged. A visible 2 px focus indicator with sufficient contrast is
+never replaced by a colour wash.
 
-Panels are carved wood, not cards:
+Progress and non-decision feedback use a non-blocking status region that does not steal
+focus. Dialogs are reserved for consent, unsaved work, and destructive decisions. Loading
+states keep their accessible names, announce meaningful changes without repetition, and
+offer a textual failure and recovery path.
 
-- 3 px `bark` frame, 1 px `ink` outline outside it, 1 px `grassLit`-tinted highlight inside
-  the top and left edges only (light falls from the upper left, always).
-- Interior is `parchment`, with a 1 px `soil` dither along the bottom edge to seat it.
-- Corners are notched by one pixel, never rounded.
-- A panel casts a hard 2 px `shadow` offset down-right. No blur, ever.
+### 2.5 Motion
 
-Buttons are the same frame at 1 px, filling with `lantern` on hover and inverting to
-`ink`-on-`cream` when held. Selected tool in the belt sits 2 px higher than its neighbours.
+Motion explains location, hierarchy, or cause. Small state changes target 100 ms, ordinary
+container and navigation transitions 200 ms, and major spatial changes no more than 300 ms.
+Animations are interruptible and never delay input.
 
-## 7. Sound
+Reduced-motion mode removes parallax, camera shake, decorative loops, long pans, and large
+scale transitions. It retains immediate state changes and short orientation cues where
+removing them would make the interface harder to follow.
 
-Synthesised at runtime through WebAudio — no audio files. Square waves for interface, triangle
-for the world. Every sound is under 200 ms and mixes below the ambience:
+### 2.6 Input, touch, and focus
 
-- `till` — descending two-tone thud; `water` — filtered noise burst
-- `plant` — soft rising blip; `harvest` — bright major third
-- `sell` — three ascending notes; `deny` — flat low buzz
-- `newday` — four-note morning phrase over a held fifth
+Every action supports keyboard and mouse, and the packaged game targets complete gamepad
+parity. Interactive targets are at least 48 by 48 CSS px or have an equivalent unobstructed
+hit area. Pointer hover is never the only way to reveal an action. Focus order follows the
+visual reading order, focus is restored after temporary surfaces close, and shortcuts never
+trap standard text-editing keys.
 
-One master mute, persisted. Audio never starts before the first input.
+### 2.7 Responsive layout
 
-## 8. What this is not
+The shell and site use content-led layouts with three baseline breakpoints:
 
-- Not Material Design, not any design system. No elevation ramps, no state layers, no ripples.
-- No rounded corners, no gradients except the sky, no drop shadows with blur.
-- No emoji or vector icons anywhere in the game surface — icons are drawn sprites.
-- No modal that dims the whole screen to 50% black. Panels sit on the world, lit.
+- compact: below 600 px, one primary column, bottom or condensed navigation, no horizontal
+  page scrolling;
+- medium: 600–839 px, one or two columns according to content, navigation rail when useful;
+- expanded: 840 px and above, persistent navigation plus bounded reading and tool panes.
 
-## 9. Accessibility
+Dense tables gain a labelled card or scroll-region alternative rather than shrinking text.
+Controls wrap by logical groups. At 200% zoom, all tasks remain available without hidden
+content or overlapping controls. Safe areas and window controls remain clear at every size.
 
-Being a canvas does not excuse it:
+## 3. Application shell and website
 
-- Every action is reachable from the keyboard; the mouse is optional.
-- A visually hidden live region mirrors state changes and panel contents for screen readers
-  (`src/renderer/announce.ts`).
-- The cursor tile always carries a 2 px `cream` outline that pulses — position is never
-  communicated by fill colour alone.
-- Text is never below the 5 × 7 face at the current integer scale, and never sits on a
-  background within 3:1 contrast of it.
+The Windows shell uses a frameless window with an accessible custom title bar, persistent
+tabs, grouped navigation, searchable settings, non-blocking notifications, command palette,
+offline documentation, history, appearance editing, and explicit destructive confirmation.
+Native HTML elements and truthful accessibility semantics are preferred to simulated
+controls.
 
----
+The website is the public entrance to the same product identity. It carries the farm-themed
+tokens, language controls, responsive navigation, foundation-status disclosure, source and
+download paths, documentation access, and accessible status messages. Its layout may be more
+editorial, but its controls use the same state, focus, contrast, sizing, and motion rules.
 
-# 10. The application shell
+Product identity is consistent across title bar, headings, metadata, installer language,
+exports, and links. Sprout Hollow Valley must not reuse Sprout Hollow's local data, saves,
+update channel, executable identity, or export namespace.
 
-Sections 1–9 above describe **the game surface**. This section describes the application
-that contains it.
+## 4. Third-person low-poly 3D world
 
-## 10.1 Recorded exemption from the shared UI contract
+### 4.1 Art direction
 
-The shared product UI contract opens with *"Use Material Design 3 tokens, typography,
-shape, elevation, motion, and component anatomy."* **This repository is exempt from that
-one clause**, by explicit direction: Sprout Hollow uses the game design language defined in
-sections 1–9 instead. The exemption covers the M3 visual system only.
+The world uses authored low-poly meshes with clear silhouettes, flat or lightly graded
+materials, restrained texture density, and a consistent human-readable scale. Crops remain
+recognisable across growth stages; tools and workstations show their current function from
+more than one angle; doors, stairs, lifts, sanitation fixtures, and accessible routes are
+visually distinct.
 
-Every other clause of that contract applies here in full — including the second half of
-that same sentence, the frameless window with a custom title bar. `docs/COMPLIANCE.md`
-records each clause and how this repository satisfies it.
+Lighting supports time, season, weather, and interior use without hiding interaction cues.
+Sunlight, practical lamps, and emissive accents use bounded intensity. A high-visibility
+mode may simplify materials and strengthen outlines or markers without changing collision
+or gameplay rules.
 
-## 10.2 Two surfaces, one language
+Bundled glTF assets are the release source. Runtime asset downloads and online-generated
+dialogue are outside the product contract.
 
-The one-canvas rule in section 2 governs **the game surface** — the farm, its HUD and its
-tool belt. It does not govern the application around it.
+### 4.2 Camera and targeting
 
-- **The game surface** is the canvas, unchanged: 320×224, upscaled by whole numbers.
-- **The shell** — title bar, tab strip, settings, documentation, history, changelog, the
-  command palette, the regex builders and the appearance editors — is real DOM.
+The default camera follows behind and above the player with orbit, zoom, recenter, shoulder
+switching, and obstruction handling. It avoids rapid automatic yaw, wall clipping, and
+placing the avatar between the player and the current target.
 
-The shell is DOM for a reason, and the reason is the contract itself: it requires every
-control to be correctly named and stated for assistive technology, keyboard reachable and
-visibly focused. Native elements give a screen reader those things truthfully. A canvas
-re-implementation would be a costume over an empty stage, and the contract explicitly
-refuses costumes — every rendered-looking control must be functional.
+Indoor profiles shorten the camera arm and adjust collision without changing control
+meaning. Camera sensitivity, axis inversion, field of view, shake, recenter strength, and
+motion assistance are configurable. Targeting identifies the selected object in shape,
+text, and accessible announcements; it does not depend on a faint outline alone.
 
-The shell is *not* a second design language. It is sections 3, 4 and 6 rendered in CSS:
-the same fourteen palette entries as custom properties, carved-wood panels with hard 2 px
-shadows, one-pixel notched corners, no radius, no blur, no gradient except the sky, light
-from the upper left. Where the shell needs display type it draws it with the game's own
-5×7 face onto a canvas, so both surfaces are set in the same letterforms.
+### 4.3 World streaming
 
-## 10.3 Shell specifics
+The connected valley is partitioned into deterministic terrain cells with explicit load,
+ready, degraded, and failed states. Distance-based detail, occlusion, instancing, and bounded
+budgets control mesh, texture, navigation, animation, NPC, and audio memory. Simulation
+state remains authoritative when its presentation cell is unloaded.
 
-- **Title bar** — frameless, custom, draggable, with real minimise / maximise / close
-  controls. Double-click to maximise. It is a `banner` landmark and its controls are
-  buttons with accessible names, not glyph divs.
-- **Tabs** — persistent and browser-style: overflow, reorder by drag and by keyboard, pin,
-  groups with collapse, and the full `tablist` / `tab` / `tabpanel` role set. Closing a tab
-  with unsaved work asks first.
-- **Density and scale** — usable at 100 / 125 / 150 / 200 % display scale and down to a
-  640 px window. Nothing clips, overlaps or leaves the viewport, and no interactive target
-  is under 24 × 24 CSS px.
-- **Notifications** — informational, success, progress and non-decision failures appear in
-  a non-blocking stack that never steals focus. A blocking dialog is reserved for a real
-  decision: a destructive confirmation, unsaved work, or consent.
-- **Motion** — the shell obeys `prefers-reduced-motion` alongside the game, and the in-app
-  motion setting overrides the system preference in either direction.
+Cell transitions prefetch along likely travel paths, preserve input responsiveness, and use
+a visible recovery state when an asset or cell cannot load. Teleports, save reloads, and
+region changes resolve from stable identifiers rather than transient scene objects.
 
-## 10.4 Language
+### 4.4 Buildings and interiors
 
-Three persisted modes — English, playful Hong Kong-style Cantonese, and a compact bilingual
-mode — with independent English and Cantonese funny-level controls from 1 to 5.
+All 700 planned building and factory definitions are fully enterable structures. Exterior
+doorways transition quickly into separately streamed, traversable room graphs. Every floor,
+room, stair, elevator, restricted space, station, fixture, entrance, and exit has a stable
+definition and navigation path.
 
-The funny level restyles **every** message, including warnings and failures. It never edits
-a fact: a number, a name, a file path, a key binding, an error code and a crop price read
-identically at level 1 and level 5. Only the wrapping voice changes. The setting discloses
-this in its own description, in the active language.
+Every visible door has a real destination. A locked door states why it is locked and how it
+can eventually become usable. Interiors include functional, context-appropriate rooms,
+lighting, signs, furniture, staffing, storage, utilities, safety equipment, restrooms, and
+hand-washing facilities. Decorative shells and fake doors must not imply inaccessible space.
+
+## 5. Language and voice
+
+Every user-facing surface supports three persisted modes:
+
+- English;
+- playful Hong Kong Cantonese written for local readability rather than literal word-for-word
+  substitution;
+- compact bilingual English and Cantonese.
+
+English and Cantonese each have an independent funny-level control from 1 to 5. The level
+changes warmth and comic framing, never a fact. Names, quantities, dates, prices, controls,
+paths, identifiers, warnings, consent, and recovery instructions retain exactly the same
+meaning at every level. Safety-critical copy stays direct even at the highest setting.
+
+Language changes apply immediately, persist locally, preserve the user's place and focus,
+and cover accessible names, announcements, validation, empty states, loading, errors, and
+offline documentation as well as visible labels. Bilingual layouts reflow instead of
+reducing either language to unreadable text.
+
+## 6. Inherited design history
+
+Sprout Hollow Valley is derived from Sprout Hollow under the MIT license. The inherited
+product used a fixed-resolution pixel-art canvas, a dusk palette, bitmap typography,
+integer scaling, carved-wood panels, and synthesised sound. That work remains part of the
+project's history and may inform tone, farming rules, and respectful attribution, but it is
+not the current visual contract for Sprout Hollow Valley's shell, website, or 3D world.
+
+See [PLAN.md](PLAN.md), [the product contract](docs/VALLEY-PRODUCT.md), and
+[the per-surface completeness inventory](docs/VALLEY-COMPLETENESS.md) for scope and delivery
+status.

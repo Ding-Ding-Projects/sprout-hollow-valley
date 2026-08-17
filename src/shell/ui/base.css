@@ -1,9 +1,10 @@
 /*
- * Sprout Hollow — shell structure.
+ * Sprout Hollow Valley — shell structure.
  *
  * DESIGN.md sections 3, 4 and 6 rendered in CSS: carved wood, hard 2px shadows offset
- * down-right and never blurred, one-pixel notched corners, no border-radius anywhere,
- * no gradient except the sky, light from the upper left always.
+ * down-right and never blurred, notched corners, no gradient except the sky, and light
+ * from the upper left always. Material 3 shape roles translate into those farm-carved
+ * silhouettes instead of replacing the established shell architecture.
  *
  * Every colour, size and duration comes from `tokens.css`. There is no literal colour
  * in this file.
@@ -120,8 +121,98 @@ canvas {
   color: var(--sh-fg-on-dark);
   font-family: var(--sh-font-ui);
   font-size: var(--sh-text-md);
+  accent-color: var(--md-sys-color-primary);
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* ========================================================================== */
+/* 2a. Material 3 farm-surface foundation                                     */
+/* ========================================================================== */
+
+/*
+ * These semantic primitives are additive: existing `.sh-*` components keep their
+ * architecture, while new 3D Valley panels can use Material 3 roles without hard-coded
+ * colour, type, state, shape, elevation, or motion decisions.
+ */
+.sh-md-surface,
+.sh-md-card {
+  min-width: 0;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.sh-md-card {
+  --sh-notch-size: var(--md-sys-shape-corner-extra-small);
+  padding: var(--sh-space-4);
+  background: var(--md-sys-color-surface-container-low);
+  border: var(--sh-frame-thin) solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-level1);
+  clip-path: var(--sh-notch);
+}
+
+.sh-md-card--raised {
+  background: var(--md-sys-color-surface-container-lowest);
+  box-shadow: var(--md-sys-elevation-level2);
+}
+
+.sh-md-title {
+  margin: 0;
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+}
+
+.sh-md-body {
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: var(--md-sys-typescale-body-large-weight);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+}
+
+.sh-md-label {
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+}
+
+.sh-md-stateful {
+  min-width: var(--sh-target-min);
+  min-height: var(--sh-target-min);
+  transition:
+    background-color var(--sh-dur-fast) var(--sh-ease-smooth),
+    box-shadow var(--sh-dur-fast) var(--sh-ease-smooth),
+    transform var(--sh-dur-fast) var(--sh-ease-smooth);
+}
+
+.sh-md-stateful:hover:not(:disabled, [aria-disabled='true']) {
+  background-color: var(--md-sys-state-hover-surface);
+}
+
+.sh-md-stateful:active:not(:disabled, [aria-disabled='true']) {
+  background-color: var(--md-sys-state-pressed-surface);
+  box-shadow: var(--md-sys-elevation-level0);
+  transform: translateY(var(--sh-px));
+}
+
+.sh-md-stateful:is(:disabled, [aria-disabled='true']) {
+  opacity: var(--md-sys-state-disabled-opacity);
+}
+
+/* Material's minimum pointer target applies even to semantic controls introduced by */
+/* future Valley panels that do not yet carry a component-specific `.sh-*` class.     */
+:is(button, select, summary, [role='button'], [role='tab'], [role='menuitem'],
+    [role='option'], [role='switch']) {
+  min-height: var(--sh-target-min);
+}
+
+:is(input:not([type='hidden']), textarea) {
+  min-height: var(--sh-target-min);
 }
 
 /* Anything readable or copyable opts back into selection. */

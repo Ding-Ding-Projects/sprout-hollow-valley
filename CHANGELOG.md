@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Sprout Hollow are recorded here.
+All notable changes to Sprout Hollow Valley are recorded here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,6 +9,41 @@ The application ships this file: the Changelog tab renders exactly the text belo
 build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
+
+Sprout Hollow Valley begins as an independent Windows-only third-person low-poly 3D farming
+and life-simulation product derived from Sprout Hollow under the MIT license. This update
+establishes the shell, website, product identity, and public documentation foundation; it
+does not claim that the planned 3D world or complete content catalogue is implemented.
+
+### Added
+
+- A farm-themed Material 3 direction for the Windows shell and responsive website, including
+  semantic colour, typography, shape, elevation, interaction-state, motion, focus, target-size,
+  contrast, and responsive-layout rules.
+- English, playful Hong Kong Cantonese, and compact bilingual language modes, with independent
+  English and Cantonese funny-level controls that do not change facts.
+- A separate Sprout Hollow Valley application, local-data, save, update, executable, installer,
+  shell-storage, IPC, and export identity so the inherited product and its saves remain
+  untouched.
+- A public product contract and per-surface completeness inventory for the planned connected
+  valley, at least 5,000 unique non-NPC content definitions, 700 fully enterable structures,
+  and exactly 240 persistent named NPCs.
+- Third-person low-poly 3D direction for camera behavior, deterministic terrain-cell streaming,
+  separately streamed room graphs, real door destinations, functional interiors, and accessible
+  interaction targeting.
+
+### Delivery note
+
+- Tests and captures were intentionally not run for this foundation update under the accelerated
+  delivery mode. Build and packaging results, if any, are reported separately and are not implied
+  by this changelog.
+
+## Inherited Sprout Hollow history: unreleased development record
+
+The entries from this point through the inherited releases preserve relevant history from the
+[original Sprout Hollow repository](https://github.com/Ding-Ding-Projects/farming-game). They
+describe the earlier pixel-art product and are not statements about the current Valley
+foundation.
 
 The game is redrawn. The framebuffer doubles to 640 x 448 and the tile doubles with it to
 32 x 32, which is four times the pixels per sprite and the whole point of the exercise. The
@@ -89,7 +124,7 @@ literal shape the landing page parses.
 - The landing page was still shipping 960 x 528 screenshots of the 16 px art, with those
   dimensions hard-coded in `index.html`.
 
-## [1.1.0] - 2026-08-16
+## Inherited Sprout Hollow history: 1.1.0 - 2026-08-16
 
 The farm becomes a business. Animals, buildings, factories, a market that moves, and a
 hundred levels of things to reach for. Version 1.0 saves load straight into it.
@@ -201,7 +236,7 @@ hundred levels of things to reach for. Version 1.0 saves load straight into it.
   one, the home meadow owned, a neutral market, no debt — and a single bad row inside a
   new collection is dropped rather than failing the whole file.
 
-## [1.0.0] - 2026-08-16
+## Inherited Sprout Hollow history: 1.0.0 - 2026-08-16
 
 The first release. A complete farming game, and the desktop application that contains it.
 
@@ -314,5 +349,3 @@ The first release. A complete farming game, and the desktop application that con
 - 168 unit tests over the rules layer, and a type-check across the renderer and the Electron
   main process, both run in continuous integration.
 
-[Unreleased]: https://github.com/Ding-Ding-Projects/farming-game/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Ding-Ding-Projects/farming-game/releases/tag/v1.0.0

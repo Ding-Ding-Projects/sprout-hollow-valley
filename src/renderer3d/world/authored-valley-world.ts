@@ -777,6 +777,13 @@ function addBuilding(
   const structure = new Group()
   structure.name = `${instanceName}:${building.id}`
   structure.position.set(localX, baseY, localZ)
+  structure.userData = {
+    semantic: 'authored-structure',
+    structureKind: 'building',
+    contentStructureId: building.id,
+    label: building.name,
+    definition: building,
+  }
 
   const body = new Mesh(
     ownGeometry(resources, new BoxGeometry(width, height, depth)),
@@ -805,6 +812,14 @@ function addBuilding(
   )
   door.name = `${building.id}:enterable-door`
   door.position.set(0, 0.59, depth / 2 + 0.045)
+  door.userData = {
+    semantic: 'authored-structure-door',
+    interactive: true,
+    structureKind: 'building',
+    contentStructureId: building.id,
+    label: `Enter ${building.name}`,
+    definition: building,
+  }
   structure.add(door)
 
   const windowMaterial = createMaterial(resources, 0xf6d890, {
@@ -856,6 +871,13 @@ function addFactory(
   const structure = new Group()
   structure.name = `${instanceName}:${factory.id}`
   structure.position.set(localX, baseY, localZ)
+  structure.userData = {
+    semantic: 'authored-structure',
+    structureKind: 'factory',
+    contentStructureId: factory.id,
+    label: factory.name,
+    definition: factory,
+  }
 
   const body = new Mesh(
     ownGeometry(resources, new BoxGeometry(width, height, depth)),
@@ -892,6 +914,14 @@ function addFactory(
   )
   loadingDoor.name = `${factory.id}:enterable-loading-door`
   loadingDoor.position.set(0, 0.68, depth / 2 + 0.045)
+  loadingDoor.userData = {
+    semantic: 'authored-structure-door',
+    interactive: true,
+    structureKind: 'factory',
+    contentStructureId: factory.id,
+    label: `Enter ${factory.name}`,
+    definition: factory,
+  }
   structure.add(loadingDoor)
   root.add(structure)
 

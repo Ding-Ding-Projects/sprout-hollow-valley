@@ -39,6 +39,7 @@ import {
   type EnvironmentSystemOptions,
 } from './environment'
 import {
+  buildAuthoredValleyWorldCell,
   ThreeWorldCellSource,
   type LoadedThreeWorldCell,
   type ThreeWorldCellBuilder,
@@ -238,7 +239,10 @@ export class ThreeRuntime {
   private readonly playerGravity: number
   private playerVerticalVelocity = 0
   private playerGrounded = true
+  private playerGroundHeight = 0
   private playerFacing = Math.PI
+  private worldVisible = true
+  private requestedEnvironment: EnvironmentSeedState | null = null
   private disposed = false
   private disposePromise: Promise<void> | undefined
 
@@ -269,6 +273,7 @@ export class ThreeRuntime {
     this.world = new WorldCellStreamer(source, worldOptions)
 
     this.playerPosition = finitePosition(options.player?.spawn ?? DEFAULT_PLAYER.spawn)
+    this.playerGroundHeight = this.playerPosition.y
     this.playerWalkSpeed = positiveOption(
       options.player?.walkSpeed,
       DEFAULT_PLAYER.walkSpeed,
@@ -336,6 +341,39 @@ export class ThreeRuntime {
     this.input.clear()
   }
 
+  /** Current player yaw, exposed so the canonical save can retain its four-way facing. */
+  get playerYaw(): number {
+    return this.playerFacing
+  }
+
+  /**
+   * Places the controllable actor at a deterministic exterior or interior arrival point.
+   * The supplied Y coordinate also becomes the local walkable ground until the next pose.
+   */
+  setPlayerPose(position: CameraVector3, facingRadians = this.playerFacing): void {
+    if (this.disposed) throw new Error('ThreeRuntime is disposed')
+    const next = finitePosition(position)
+    if (!Number.isFinite(facingRadians)) throw new RangeError('player facing must be finite')
+    this.playerPosition.copy(next)
+    this.playerGroundHeight = next.y
+    this.playerFacing = facingRadians
+    this.playerVerticalVelocity = 0
+    this.playerGrounded = true
+    this.syncPlayerVisual()
+    this.cameraController.setTarget(this.playerPosition)
+  }
+
+  /** Hides only streamed exterior cells while a separately mounted interior is active. */
+  setWorldVisible(visible: boolean): void {
+    this.worldVisible = visible
+    this.syncWorldVisibility()
+  }
+
+  /** Retargets lighting from canonical game state without letting rendering own the clock. */
+  syncEnvironment(state: EnvironmentSeedState): void {
+    this.requestedEnvironment = Object.freeze({ ...state })
+  }
+
   resize(width = this.options.canvas.clientWidth, height = this.options.canvas.clientHeight): void {
     const resolvedWidth = resolveDimension(width)
     const resolvedHeight = resolveDimension(height)
@@ -357,7 +395,7 @@ export class ThreeRuntime {
       collision: this.collision,
       assets: this.assets,
       cellSize,
-      buildCell: this.options.buildCell,
+      buildCell: this.options.buildCell ?? buildAuthoredValleyWorldCell,
     })
   }
 
@@ -406,8 +444,8 @@ export class ThreeRuntime {
     if (!this.playerGrounded || this.playerVerticalVelocity !== 0) {
       this.playerVerticalVelocity -= this.playerGravity * deltaSeconds
       this.playerPosition.y += this.playerVerticalVelocity * deltaSeconds
-      if (this.playerPosition.y <= 0) {
-        this.playerPosition.y = 0
+      if (this.playerPosition.y <= this.playerGroundHeight) {
+        this.playerPosition.y = this.playerGroundHeight
         this.playerVerticalVelocity = 0
         this.playerGrounded = true
       }
@@ -457,12 +495,34 @@ export class ThreeRuntime {
   ): Promise<ThreeRuntimeTick> {
     this.cameraController.setTarget(playerPosition)
     this.cameraController.update(deltaSeconds)
-    this.environment.update({ deltaTicks: deltaSeconds })
+    const requested = this.requestedEnvironment
+    this.environment.update(
+      requested === null
+        ? { deltaTicks: deltaSeconds }
+        : {
+            deltaTicks: deltaSeconds,
+            minuteOfDay: requested.minuteOfDay,
+            season: requested.season,
+            weather: requested.weather,
+          },
+    )
     this.environment.applyExposure(this.renderer)
     const world = await this.world.update(this.worldPosition(playerPosition))
     if (this.disposed) throw new Error('ThreeRuntime is disposed')
+    this.syncWorldVisibility()
     this.renderer.render(this.scene, this.camera)
     return Object.freeze({ input, world })
+  }
+
+  private syncWorldVisibility(): void {
+    for (const child of this.scene.children) {
+      if (
+        child.name.startsWith('authored-valley-cell:') ||
+        child.name.startsWith('world-cell:')
+      ) {
+        child.visible = this.worldVisible
+      }
+    }
   }
 
   private async disposeRuntime(): Promise<void> {

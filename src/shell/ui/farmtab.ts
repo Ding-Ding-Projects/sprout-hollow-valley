@@ -28,9 +28,49 @@
  */
 
 import { CROPS } from '../../game/crops'
-import type { GameState, Quality, Season } from '../../game/types'
+import { createState } from '../../game/state'
+import { formatClock } from '../../game/time'
+import type { Facing, GameState, Quality, Season, ToolId } from '../../game/types'
+import { VALLEY_BUILDINGS, VALLEY_FACTORIES } from '../../content/valley-structures'
+import type { StaticCollider, Vec3 } from '../../engine3d'
+import { requireInteriorById, type InteriorGraph } from '../../interiors'
+import { structureDefinitionId } from '../../life/catalog'
+import { NPC_DEFINITIONS } from '../../life/npcs'
+import { advanceLifeSimulation } from '../../life/simulation'
+import { createLifeSimulation } from '../../life/state'
+import type { LifeSimulationState } from '../../life/types'
+import { loadSave, saveGame } from '../../renderer/bridge'
 import { mountThreeFarmSurface } from '../../renderer3d/farm-surface'
 import type { ThreeFarmSurfaceStatus } from '../../renderer3d/farm-surface'
+import {
+  createFarmingGameplayAdapter,
+  type FarmingGameplayAdapter,
+  type GameplayCommand,
+  type GameplayOverlay,
+  type ResolvedGameplayTarget,
+  worldToFarmTile,
+} from '../../renderer3d/gameplay-adapter'
+import {
+  createNpcPresentationAdapter,
+  resolveDeterministicNpcPlacement,
+  type NpcInteractionTarget,
+  type NpcPresentationAdapter,
+  type NpcPresentationFrameResult,
+  type NpcPresentationPlacement,
+} from '../../renderer3d/npcs'
+import {
+  createThreeInteriorRuntime,
+  type ThreeInteriorActionResult,
+  type ThreeInteriorRuntimeAdapter,
+} from '../../renderer3d/interiors'
+import type { ThreeRuntime, ThreeRuntimeTick } from '../../renderer3d/runtime'
+import {
+  Object3D,
+  Raycaster,
+  Vector2,
+  Vector3,
+  type Intersection,
+} from 'three'
 import { cropNameKey, onLangChange, qualityKey, seasonKey, t } from '../core/i18n'
 import type { StringKey } from '../core/i18n'
 import { record } from '../core/history'
@@ -315,6 +355,147 @@ export function routeGameMessage(raw: string): Routed | null {
  * The tab
  * -------------------------------------------------------------------------- */
 
+const INTERIOR_WORLD_Y = 32
+const NPC_WORLD_ID = 'sprout-hollow-valley'
+const INTERACTION_DISTANCE = 3.4
+const TOOL_ORDER: readonly ToolId[] = [
+  'hoe',
+  'can',
+  'seeds',
+  'hand',
+  'axe',
+  'sprinkler',
+  'fertilizer',
+]
+const SEASON_ORDINAL: Readonly<Record<Season, number>> = {
+  spring: 0,
+  summer: 1,
+  fall: 2,
+  winter: 3,
+}
+
+interface StructureBinding {
+  readonly contentId: string
+  readonly label: string
+  readonly graph: InteriorGraph
+  readonly lifeDefinitionId: string
+}
+
+interface AuthoredStructureTarget {
+  readonly binding: StructureBinding
+  readonly distance: number
+}
+
+type InteriorTarget =
+  | { readonly kind: 'door'; readonly id: string; readonly label: string; readonly distance: number }
+  | { readonly kind: 'connector'; readonly id: string; readonly label: string; readonly distance: number }
+  | { readonly kind: 'station'; readonly id: string; readonly label: string; readonly distance: number }
+  | { readonly kind: 'fixture'; readonly id: string; readonly label: string; readonly distance: number }
+
+interface ActiveInterior {
+  readonly binding: StructureBinding
+  readonly runtime: ThreeInteriorRuntimeAdapter
+  readonly exteriorPosition: Vec3
+  readonly exteriorFacing: number
+}
+
+const FACTORY_BINDINGS: readonly StructureBinding[] = VALLEY_FACTORIES.map(
+  (definition, index) => ({
+    contentId: definition.id,
+    label: definition.name,
+    graph: requireInteriorById(`factory-${String(index + 1).padStart(3, '0')}`),
+    lifeDefinitionId: structureDefinitionId('factory', index + 1),
+  }),
+)
+const BUILDING_BINDINGS: readonly StructureBinding[] = VALLEY_BUILDINGS.map(
+  (definition, index) => ({
+    contentId: definition.id,
+    label: definition.name,
+    graph: requireInteriorById(`building-${String(index + 1).padStart(3, '0')}`),
+    lifeDefinitionId: structureDefinitionId('building', index + 1),
+  }),
+)
+const STRUCTURE_BINDING_BY_CONTENT_ID: ReadonlyMap<string, StructureBinding> = new Map(
+  [...FACTORY_BINDINGS, ...BUILDING_BINDINGS].map((binding) => [binding.contentId, binding]),
+)
+
+function freshGameSeed(): number {
+  try {
+    const value = new Uint32Array(1)
+    crypto.getRandomValues(value)
+    return (value[0] ?? 1) & 0x7fffffff
+  } catch {
+    return 0x534856
+  }
+}
+
+function gameMinuteIndex(state: GameState): number {
+  const absoluteDay =
+    (state.year - 1) * 4 * 28 + SEASON_ORDINAL[state.season] * 28 + (state.day - 1)
+  return absoluteDay * 24 * 60 + state.minutes
+}
+
+function yawForFacing(facing: Facing): number {
+  switch (facing) {
+    case 'up':
+      return Math.PI
+    case 'down':
+      return 0
+    case 'left':
+      return -Math.PI / 2
+    case 'right':
+      return Math.PI / 2
+  }
+}
+
+function facingForYaw(yaw: number): Facing {
+  const x = Math.sin(yaw)
+  const z = Math.cos(yaw)
+  if (Math.abs(x) > Math.abs(z)) return x < 0 ? 'left' : 'right'
+  return z < 0 ? 'up' : 'down'
+}
+
+function shiftedPoint(point: Vec3, yOffset = INTERIOR_WORLD_Y): Vec3 {
+  return Object.freeze({ x: point.x, y: point.y + yOffset, z: point.z })
+}
+
+function shiftedCollider(collider: StaticCollider): StaticCollider {
+  return {
+    ...collider,
+    bounds: {
+      min: shiftedPoint(collider.bounds.min),
+      max: shiftedPoint(collider.bounds.max),
+    },
+  }
+}
+
+function semanticOwner(object: Object3D): Object3D | null {
+  let cursor: Object3D | null = object
+  while (cursor !== null) {
+    if (typeof cursor.userData.semantic === 'string') return cursor
+    cursor = cursor.parent
+  }
+  return null
+}
+
+function objectContains(root: Object3D, object: Object3D): boolean {
+  let cursor: Object3D | null = object
+  while (cursor !== null) {
+    if (cursor === root) return true
+    cursor = cursor.parent
+  }
+  return false
+}
+
+function legacyBuildingBinding(id: string): StructureBinding {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return BUILDING_BINDINGS[(hash >>> 0) % BUILDING_BINDINGS.length]!
+}
+
 export interface FarmTab {
   /** The panel content. Hand it to the tab strip. */
   readonly element: HTMLElement
@@ -363,15 +544,85 @@ export function createFarmTab(): FarmTab {
   runtimeStatus.setAttribute('aria-live', 'polite')
   runtimeStatus.setAttribute('aria-atomic', 'true')
 
+  const crosshair = document.createElement('div')
+  crosshair.className = 'sh-farm__crosshair'
+  crosshair.setAttribute('aria-hidden', 'true')
+
+  const hud = document.createElement('section')
+  hud.className = 'sh-farm__hud'
+  hud.setAttribute('aria-label', 'Farm interaction HUD')
+
+  const facts = document.createElement('p')
+  facts.className = 'sh-farm__facts'
+
+  const targetTitle = document.createElement('h2')
+  targetTitle.className = 'sh-farm__target'
+
+  const prompt = document.createElement('p')
+  prompt.className = 'sh-farm__prompt'
+
+  const detail = document.createElement('p')
+  detail.className = 'sh-farm__detail'
+
+  const feedback = document.createElement('p')
+  feedback.className = 'sh-farm__feedback'
+
+  const actionList = document.createElement('div')
+  actionList.className = 'sh-farm__actions'
+  actionList.setAttribute('role', 'group')
+  actionList.setAttribute('aria-label', 'Available farm actions')
+
+  const controls = document.createElement('p')
+  controls.className = 'sh-farm__controls'
+  controls.textContent =
+    'Move: WASD / left stick · Look: pointer / right stick · Use: E, Enter, or A · Farm action: F, click, or X · Next tool: G, right-click, or Y · Jump: Space or B'
+
+  const live = document.createElement('div')
+  live.className = 'sh-visually-hidden'
+  live.setAttribute('role', 'status')
+  live.setAttribute('aria-live', 'polite')
+  live.setAttribute('aria-atomic', 'true')
+
+  hud.append(facts, targetTitle, prompt, detail, feedback, actionList, controls)
+  stage.append(crosshair, hud, live)
   element.append(stage)
 
   /* -- the game -- */
 
-  const gameOptions = (): { pauseWhenHidden: boolean } => {
-    return { pauseWhenHidden: get().settings.game.pauseWhenHidden }
+  const gameOptions = (): { pauseWhenHidden: boolean; autosave: boolean } => {
+    const settings = get().settings.game
+    return { pauseWhenHidden: settings.pauseWhenHidden, autosave: settings.autosave }
   }
 
   let surfaceStatus: ThreeFarmSurfaceStatus = Object.freeze({ state: 'booting' })
+  let currentState: GameState | null = null
+  let lifeState: LifeSimulationState | null = null
+  let lifeMinute = 0
+  let nearbyNpcIds: ReadonlySet<string> = new Set<string>()
+  let npcFrame: NpcPresentationFrameResult | null = null
+  let npcPresentation: NpcPresentationAdapter | null = null
+  let currentNpcTarget: NpcInteractionTarget | null = null
+  let currentFarmTarget: ResolvedGameplayTarget | null = null
+  let currentFarmOverlay: GameplayOverlay | null = null
+  let currentStructureTarget: AuthoredStructureTarget | null = null
+  let currentInteriorTarget: InteriorTarget | null = null
+  let activeInterior: ActiveInterior | null = null
+  let lastFeedback = 'Loading the saved valley…'
+  let lastAnnouncement = ''
+  let lastActionSignature = ''
+  let saveTimer = 0
+  let disposed = false
+
+  const gameplay: FarmingGameplayAdapter = createFarmingGameplayAdapter({
+    transform: {
+      origin: { x: 0, y: 0, z: 0 },
+      tileSize: 1,
+      groundY: 0,
+      maxInteractionDistance: INTERACTION_DISTANCE,
+    },
+  })
+  const raycaster = new Raycaster()
+  const screenCentre = new Vector2(0, 0)
 
   const paintRuntimeStatus = (): void => {
     runtimeStatus.dataset.state = surfaceStatus.state
@@ -394,8 +645,540 @@ export function createFarmTab(): FarmTab {
     runtimeStatus.textContent = ''
   }
 
+  const persistNow = (): void => {
+    if (saveTimer !== 0) {
+      window.clearTimeout(saveTimer)
+      saveTimer = 0
+    }
+    const snapshot = currentState
+    if (snapshot !== null) void saveGame(snapshot)
+  }
+
+  const requestAutosave = (): void => {
+    if (!gameOptions().autosave || currentState === null || disposed) return
+    if (saveTimer !== 0) window.clearTimeout(saveTimer)
+    saveTimer = window.setTimeout(() => {
+      saveTimer = 0
+      persistNow()
+    }, 450)
+  }
+
+  const syncLife = (previous: GameState | null, next: GameState): void => {
+    const targetMinute = gameMinuteIndex(next)
+    if (lifeState === null || previous === null || previous.seed !== next.seed || targetMinute < lifeMinute) {
+      lifeState = createLifeSimulation(next.seed)
+      lifeMinute = 6 * 60
+    }
+    if (targetMinute > lifeMinute) {
+      lifeState = advanceLifeSimulation(lifeState, targetMinute - lifeMinute, { nearbyNpcIds })
+      lifeMinute = targetMinute
+    } else {
+      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNpcIds })
+    }
+  }
+
+  const syncEnvironment = (runtime: ThreeRuntime, state: GameState): void => {
+    runtime.syncEnvironment({
+      minuteOfDay: state.minutes,
+      season: state.season,
+      weather: state.weather,
+    })
+  }
+
+  const announceFeedback = (message: string): void => {
+    lastFeedback = message
+    if (message !== lastAnnouncement) {
+      lastAnnouncement = message
+      live.textContent = message
+    }
+  }
+
+  const commitState = (next: GameState, message: string): void => {
+    const previous = currentState
+    currentState = next
+    syncLife(previous, next)
+    const runtime = game.runtime
+    if (runtime !== null) syncEnvironment(runtime, next)
+    announceFeedback(message)
+    if (previous !== next) requestAutosave()
+  }
+
+  const applyInteriorResult = (
+    runtime: ThreeRuntime,
+    result: ThreeInteriorActionResult,
+  ): void => {
+    announceFeedback(result.feedback)
+    if (result.teleportPosition !== null) {
+      runtime.setPlayerPose(shiftedPoint(result.teleportPosition), runtime.playerYaw)
+    }
+  }
+
+  const leaveInterior = (runtime: ThreeRuntime): void => {
+    const active = activeInterior
+    if (active === null) return
+    const result = active.runtime.exit()
+    if (!result.ok) {
+      applyInteriorResult(runtime, result)
+      return
+    }
+    const message = result.feedback
+    activeInterior = null
+    active.runtime.dispose()
+    runtime.setWorldVisible(true)
+    runtime.setPlayerPose(active.exteriorPosition, active.exteriorFacing)
+    currentInteriorTarget = null
+    announceFeedback(message)
+  }
+
+  const enterInterior = (runtime: ThreeRuntime, binding: StructureBinding): void => {
+    if (activeInterior !== null) return
+    const exteriorPosition = Object.freeze({
+      x: runtime.playerPosition.x,
+      y: runtime.playerPosition.y,
+      z: runtime.playerPosition.z,
+    })
+    const exteriorFacing = runtime.playerYaw
+    const interior = createThreeInteriorRuntime({
+      graph: binding.graph,
+      actorId: 'player',
+      actorKind: 'player',
+      visibilityMode: 'room',
+    })
+    interior.presentation.root.position.y = INTERIOR_WORLD_Y
+    interior.mount({
+      scene: runtime.scene,
+      addCollider: (collider) => {
+        runtime.collision.addStaticCollider(shiftedCollider(collider))
+      },
+      removeCollider: (id) => {
+        runtime.collision.removeStaticCollider(id)
+      },
+    })
+    const result = interior.enter()
+    if (!result.ok || result.teleportPosition === null) {
+      interior.dispose()
+      announceFeedback(result.feedback)
+      return
+    }
+    activeInterior = { binding, runtime: interior, exteriorPosition, exteriorFacing }
+    runtime.setWorldVisible(false)
+    runtime.setPlayerPose(shiftedPoint(result.teleportPosition), exteriorFacing)
+    currentStructureTarget = null
+    announceFeedback(`Entered ${binding.label}. ${result.feedback}`)
+  }
+
+  const useInteriorTarget = (runtime: ThreeRuntime, target: InteriorTarget): void => {
+    const active = activeInterior
+    if (active === null || target.distance > INTERACTION_DISTANCE) return
+    switch (target.kind) {
+      case 'door': {
+        const door = active.runtime.graph.doors.find((candidate) => candidate.id === target.id)
+        if (door?.exterior === true) {
+          leaveInterior(runtime)
+          return
+        }
+        const access = active.runtime.doorFeedback(target.id)
+        if (access.state === 'locked') {
+          applyInteriorResult(
+            runtime,
+            active.runtime.resolveDoorAccess(target.id, access.accessStepIds),
+          )
+          return
+        }
+        applyInteriorResult(runtime, active.runtime.traverseDoor(target.id))
+        return
+      }
+      case 'connector':
+        applyInteriorResult(runtime, active.runtime.traverseConnector(target.id))
+        return
+      case 'station':
+        applyInteriorResult(runtime, active.runtime.useStation(target.id))
+        return
+      case 'fixture':
+        applyInteriorResult(runtime, active.runtime.useFixture(target.id))
+        return
+    }
+  }
+
+  const useSanitation = (runtime: ThreeRuntime): void => {
+    const active = activeInterior
+    if (active === null) return
+    const plan = active.runtime.sanitationPlan()
+    if (active.runtime.current.actor.roomId !== plan.restroomRoomId) {
+      const doorId = plan.routeDoorIds[0]
+      if (doorId !== undefined) {
+        const access = active.runtime.doorFeedback(doorId)
+        if (access.state === 'locked') {
+          applyInteriorResult(
+            runtime,
+            active.runtime.resolveDoorAccess(doorId, access.accessStepIds),
+          )
+          return
+        }
+      }
+    }
+    applyInteriorResult(runtime, active.runtime.useNextSanitationStep())
+  }
+
+  const executeGameplay = (
+    runtime: ThreeRuntime,
+    command: GameplayCommand,
+    target: ResolvedGameplayTarget | null,
+  ): void => {
+    const state = currentState
+    if (state === null) return
+    const outcome = gameplay.execute(state, command, target)
+    commitState(outcome.state, outcome.announcement)
+    if (outcome.transition?.kind === 'enter-building') {
+      enterInterior(runtime, legacyBuildingBinding(outcome.transition.buildingId))
+    } else if (outcome.transition?.kind === 'leave-building') {
+      leaveInterior(runtime)
+    }
+  }
+
+  const cycleTool = (runtime: ThreeRuntime): void => {
+    const state = currentState
+    if (state === null || activeInterior !== null) return
+    const index = TOOL_ORDER.indexOf(state.tool)
+    const next = TOOL_ORDER[(index + 1) % TOOL_ORDER.length] ?? 'hoe'
+    executeGameplay(runtime, { kind: 'select-tool', tool: next }, null)
+  }
+
+  const runPrimaryInteraction = (runtime: ThreeRuntime): void => {
+    if (currentNpcTarget !== null) {
+      announceFeedback(`${currentNpcTarget.displayName}: ${currentNpcTarget.prompt.text}`)
+      return
+    }
+    if (activeInterior !== null && currentInteriorTarget !== null) {
+      useInteriorTarget(runtime, currentInteriorTarget)
+      return
+    }
+    if (currentStructureTarget !== null) {
+      enterInterior(runtime, currentStructureTarget.binding)
+      return
+    }
+    const option = currentFarmOverlay?.options.find((candidate) => candidate.enabled)
+    if (option !== undefined) executeGameplay(runtime, option.command, currentFarmTarget)
+    else announceFeedback(currentFarmOverlay?.prompt ?? 'Aim at something nearby to interact.')
+  }
+
+  const labelFromData = (data: Record<string, unknown>, fallback: string): string => {
+    if (typeof data.label === 'string' && data.label.trim() !== '') return data.label
+    const definition = data.definition
+    if (
+      typeof definition === 'object' &&
+      definition !== null &&
+      'name' in definition &&
+      typeof definition.name === 'string'
+    ) {
+      return definition.name
+    }
+    return fallback
+  }
+
+  const interiorTargetFrom = (
+    hit: Intersection<Object3D>,
+    runtime: ThreeRuntime,
+  ): InteriorTarget | null => {
+    const owner = semanticOwner(hit.object)
+    if (owner === null) return null
+    const data = owner.userData as Record<string, unknown>
+    const distance = runtime.playerPosition.distanceTo(hit.point)
+    if (distance > INTERACTION_DISTANCE) return null
+    switch (data.semantic) {
+      case 'interior-door-endpoint':
+        return typeof data.doorId === 'string'
+          ? { kind: 'door', id: data.doorId, label: labelFromData(data, 'Door'), distance }
+          : null
+      case 'interior-vertical-connector':
+        return typeof data.connectorId === 'string'
+          ? {
+              kind: 'connector',
+              id: data.connectorId,
+              label: labelFromData(data, 'Stairs or elevator'),
+              distance,
+            }
+          : null
+      case 'interior-station':
+        return typeof data.stationId === 'string'
+          ? { kind: 'station', id: data.stationId, label: labelFromData(data, 'Station'), distance }
+          : null
+      case 'interior-fixture':
+        return typeof data.fixtureId === 'string'
+          ? { kind: 'fixture', id: data.fixtureId, label: labelFromData(data, 'Fixture'), distance }
+          : null
+      default:
+        return null
+    }
+  }
+
+  const updateTargets = (runtime: ThreeRuntime): void => {
+    raycaster.setFromCamera(screenCentre, runtime.camera)
+    const hits = raycaster
+      .intersectObjects(runtime.scene.children, true)
+      .filter((hit) => !objectContains(runtime.playerAvatar, hit.object))
+
+    currentNpcTarget = null
+    for (const npc of npcFrame?.interactionTargets ?? []) {
+      const hit = hits.find((candidate) => objectContains(npc.object, candidate.object))
+      const rayDistance = raycaster.ray.distanceToPoint(
+        new Vector3(npc.position.x, npc.position.y + 0.8, npc.position.z),
+      )
+      if (hit !== undefined || rayDistance <= 0.75) {
+        currentNpcTarget = npc
+        break
+      }
+    }
+
+    currentInteriorTarget = null
+    currentStructureTarget = null
+    currentFarmTarget = null
+    currentFarmOverlay = null
+    const state = currentState
+    if (state === null) return
+
+    if (activeInterior !== null) {
+      for (const hit of hits) {
+        const target = interiorTargetFrom(hit, runtime)
+        if (target !== null) {
+          currentInteriorTarget = target
+          break
+        }
+      }
+      return
+    }
+
+    for (const hit of hits) {
+      const owner = semanticOwner(hit.object)
+      const data = owner?.userData as Record<string, unknown> | undefined
+      if (data?.semantic !== 'authored-structure-door') continue
+      if (typeof data.contentStructureId !== 'string') continue
+      const binding = STRUCTURE_BINDING_BY_CONTENT_ID.get(data.contentStructureId)
+      if (binding === undefined) continue
+      const distance = runtime.playerPosition.distanceTo(hit.point)
+      if (distance <= INTERACTION_DISTANCE) {
+        currentStructureTarget = { binding, distance }
+        break
+      }
+    }
+
+    const ground = hits.find((hit) => hit.object.name.startsWith('terrain:'))
+    currentFarmTarget = gameplay.resolveTarget(state, {
+      actorPosition: runtime.playerPosition,
+      groundPoint: ground?.point,
+    })
+    currentFarmOverlay = gameplay.overlay(state, currentFarmTarget, { inputLabel: 'Use (E / A)' })
+  }
+
+  interface HudAction {
+    readonly id: string
+    readonly label: string
+    readonly description: string
+    readonly enabled: boolean
+    readonly run: () => void
+  }
+
+  const hudActions = (runtime: ThreeRuntime): readonly HudAction[] => {
+    const actions: HudAction[] = []
+    if (currentNpcTarget !== null) {
+      const npc = currentNpcTarget
+      actions.push({
+        id: `talk:${npc.npcId}`,
+        label: npc.prompt.promptLabel,
+        description: npc.prompt.accessibilityLabel,
+        enabled: true,
+        run: () => announceFeedback(`${npc.displayName}: ${npc.prompt.text}`),
+      })
+    } else if (activeInterior !== null) {
+      const target = currentInteriorTarget
+      if (target !== null) {
+        actions.push({
+          id: `${target.kind}:${target.id}`,
+          label: target.kind === 'door' ? `Open ${target.label}` : `Use ${target.label}`,
+          description: `Use the targeted ${target.kind}.`,
+          enabled: target.distance <= INTERACTION_DISTANCE,
+          run: () => useInteriorTarget(runtime, target),
+        })
+      }
+      actions.push({
+        id: 'sanitation-route',
+        label: 'Restroom and hand-washing route',
+        description: 'Advance one accessible toilet, sink, soap, rinse, or drying step.',
+        enabled: true,
+        run: () => useSanitation(runtime),
+      })
+    } else if (currentStructureTarget !== null) {
+      const structure = currentStructureTarget
+      actions.push({
+        id: `enter:${structure.binding.contentId}`,
+        label: `Enter ${structure.binding.label}`,
+        description: `Load and enter ${structure.binding.graph.rooms.length} detailed rooms.`,
+        enabled: structure.distance <= INTERACTION_DISTANCE,
+        run: () => enterInterior(runtime, structure.binding),
+      })
+    } else {
+      for (const option of currentFarmOverlay?.options ?? []) {
+        actions.push({
+          id: option.id,
+          label: option.label,
+          description: option.description,
+          enabled: option.enabled,
+          run: () => executeGameplay(runtime, option.command, currentFarmTarget),
+        })
+      }
+      actions.push({
+        id: 'next-tool',
+        label: 'Next tool (G / Y)',
+        description: 'Cycle to the next canonical farming tool.',
+        enabled: currentState !== null,
+        run: () => cycleTool(runtime),
+      })
+    }
+    actions.push({
+      id: 'save-now',
+      label: 'Save now',
+      description: 'Write the canonical farm state immediately.',
+      enabled: currentState !== null,
+      run: () => {
+        persistNow()
+        announceFeedback('Valley saved.')
+      },
+    })
+    return actions
+  }
+
+  const paintHud = (runtime: ThreeRuntime | null): void => {
+    const state = currentState
+    if (state === null || runtime === null) {
+      facts.textContent = 'Restoring canonical farm and life state…'
+      targetTitle.textContent = 'Sprout Hollow Valley'
+      prompt.textContent = 'The authored 3D valley is loading.'
+      detail.textContent = 'The Farm tab will become interactive as soon as the save is ready.'
+      feedback.textContent = lastFeedback
+      return
+    }
+
+    const place = activeInterior === null
+      ? 'Open valley'
+      : `${activeInterior.binding.label} · ${activeInterior.runtime.current.actor.roomId ?? 'entry'}`
+    facts.textContent =
+      `Year ${state.year} · ${state.season} ${state.day} · ${formatClock(state.minutes)} · ${state.gold}g · Energy ${state.energy}/${state.maxEnergy} · Tool ${state.tool} · ${place} · NPCs ${npcFrame?.materializedNpcIds.length ?? 0}/240 nearby`
+
+    if (currentNpcTarget !== null) {
+      targetTitle.textContent = currentNpcTarget.displayName
+      prompt.textContent = currentNpcTarget.prompt.promptLabel
+      detail.textContent = currentNpcTarget.prompt.text
+    } else if (activeInterior !== null && currentInteriorTarget !== null) {
+      targetTitle.textContent = currentInteriorTarget.label
+      prompt.textContent = `Use ${currentInteriorTarget.kind} (E / A)`
+      detail.textContent = `Inside ${activeInterior.binding.label}. Every visible door, station, and fixture is raycast-interactive.`
+    } else if (activeInterior !== null) {
+      targetTitle.textContent = activeInterior.binding.label
+      prompt.textContent = 'Aim at a door, stairs, elevator, work station, restroom, sink, or fixture.'
+      detail.textContent = `${activeInterior.binding.graph.rooms.length} rooms · ${activeInterior.binding.graph.doors.length} doors · ${activeInterior.binding.graph.stations.length} stations · ${activeInterior.binding.graph.fixtures.length} fixtures.`
+    } else if (currentStructureTarget !== null) {
+      targetTitle.textContent = currentStructureTarget.binding.label
+      prompt.textContent = `Enter building (E / A)`
+      detail.textContent = `${currentStructureTarget.binding.graph.rooms.length} detailed rooms with doors, stations, a restroom, and hand washing.`
+    } else {
+      targetTitle.textContent = currentFarmOverlay?.title ?? 'Open valley'
+      prompt.textContent = currentFarmOverlay?.prompt ?? 'Explore the authored valley.'
+      detail.textContent = currentFarmOverlay?.detail ?? 'Aim at a nearby farm tile or valley structure.'
+    }
+    feedback.textContent = lastFeedback
+
+    const actions = hudActions(runtime)
+    const signature = actions.map((action) => `${action.id}:${action.enabled}`).join('|')
+    if (signature === lastActionSignature) return
+    lastActionSignature = signature
+    actionList.replaceChildren()
+    for (const action of actions) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'sh-btn sh-farm__action'
+      button.textContent = action.label
+      button.title = action.description
+      button.disabled = !action.enabled
+      if (action.id !== 'save-now' && action.id !== 'next-tool') {
+        button.setAttribute('aria-keyshortcuts', 'E Enter')
+      }
+      button.addEventListener('click', () => {
+        action.run()
+        game.focus()
+      })
+      actionList.appendChild(button)
+    }
+  }
+
+  const syncPlayerSave = (runtime: ThreeRuntime): void => {
+    const state = currentState
+    if (state === null || activeInterior !== null) return
+    const tile = worldToFarmTile(runtime.playerPosition, gameplay.transform)
+    if (tile === null) return
+    const facing = facingForYaw(runtime.playerYaw)
+    if (state.player.x === tile.x && state.player.y === tile.y && state.player.facing === facing) return
+    currentState = { ...state, player: { x: tile.x, y: tile.y, facing } }
+    requestAutosave()
+  }
+
+  const updateNpcPresentation = (runtime: ThreeRuntime, state: GameState): void => {
+    if (npcPresentation === null || lifeState === null) return
+    const interior = activeInterior
+    npcFrame = npcPresentation.update({
+      state: lifeState,
+      viewer: interior === null
+        ? {
+            position: runtime.playerPosition,
+            space: { kind: 'exterior', worldId: NPC_WORLD_ID },
+          }
+        : {
+            position: runtime.playerPosition,
+            space: {
+              kind: 'interior',
+              structureDefinitionId: interior.binding.lifeDefinitionId,
+              structureInstanceId: null,
+              roomId: interior.runtime.current.actor.roomId,
+            },
+          },
+      conversationContext: {
+        minute: state.minutes,
+        season: state.season,
+        weather: state.weather,
+        roomId: interior?.runtime.current.actor.roomId ?? null,
+      },
+    })
+    const nextNearby = npcFrame.nearbyNpcIds
+    const previousKey = [...nearbyNpcIds].sort().join('|')
+    const nextKey = [...nextNearby].sort().join('|')
+    nearbyNpcIds = nextNearby
+    if (previousKey !== nextKey) {
+      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNpcIds })
+    }
+  }
+
+  const onFrame = async (frame: {
+    readonly runtime: ThreeRuntime
+    readonly tick: ThreeRuntimeTick
+    readonly deltaSeconds: number
+  }): Promise<void> => {
+    if (disposed) return
+    const state = currentState
+    if (state === null) {
+      paintHud(frame.runtime)
+      return
+    }
+    syncPlayerSave(frame.runtime)
+    updateNpcPresentation(frame.runtime, currentState ?? state)
+    updateTargets(frame.runtime)
+    if (frame.tick.input.buttons.secondaryAction.pressed) cycleTool(frame.runtime)
+    if (frame.tick.input.buttons.interact.pressed) runPrimaryInteraction(frame.runtime)
+    if (frame.tick.input.buttons.primaryAction.pressed) runPrimaryInteraction(frame.runtime)
+    paintHud(frame.runtime)
+  }
+
   const game = mountThreeFarmSurface(stage, {
     startPaused: true,
+    onFrame,
     onStateChange: (next) => {
       surfaceStatus = next
       paintRuntimeStatus()
@@ -408,6 +1191,59 @@ export function createFarmTab(): FarmTab {
   game.canvas.setAttribute('aria-describedby', runtimeStatus.id)
   paintRuntimeStatus()
 
+  if (game.runtime !== null) {
+    npcPresentation = createNpcPresentationAdapter({
+      parent: game.runtime.scene,
+      collision: game.runtime.collision,
+      definitions: NPC_DEFINITIONS,
+      placementResolver: (context): NpcPresentationPlacement => {
+        const placement = resolveDeterministicNpcPlacement(context)
+        const interior = activeInterior
+        if (
+          interior === null ||
+          placement.space.kind !== 'interior' ||
+          placement.space.structureDefinitionId !== interior.binding.lifeDefinitionId
+        ) {
+          return placement
+        }
+        const room = placement.roomId === null
+          ? null
+          : interior.runtime.presentation.rooms.get(placement.roomId)
+        const anchor = room?.spawnPosition ?? { x: 0, y: 0, z: 0 }
+        return {
+          ...placement,
+          position: {
+            x: anchor.x + placement.position.x,
+            y: anchor.y + placement.position.y + INTERIOR_WORLD_Y,
+            z: anchor.z + placement.position.z,
+          },
+        }
+      },
+    })
+  }
+
+  void (async () => {
+    const saved = await loadSave()
+    if (disposed) return
+    const next = currentState ?? saved ?? createState(freshGameSeed())
+    currentState = next
+    syncLife(null, next)
+    const runtime = game.runtime
+    if (runtime !== null) {
+      runtime.setPlayerPose(
+        { x: next.player.x + 0.5, y: 0, z: next.player.y + 0.5 },
+        yawForFacing(next.player.facing),
+      )
+      syncEnvironment(runtime, next)
+    }
+    announceFeedback(saved === null ? 'New valley ready.' : 'Saved valley restored.')
+    paintHud(runtime)
+    applyClock()
+  })().catch((error: unknown) => {
+    announceFeedback(error instanceof Error ? error.message : String(error))
+    paintHud(game.runtime)
+  })
+
   /* -- visibility -- */
 
   let visible = false
@@ -415,7 +1251,10 @@ export function createFarmTab(): FarmTab {
   const applyClock = (): void => {
     const shouldRun = visible || !gameOptions().pauseWhenHidden
     if (shouldRun) game.resume()
-    else game.pause()
+    else {
+      game.pause()
+      persistNow()
+    }
   }
 
   const stopStore = subscribe(() => {
@@ -459,17 +1298,43 @@ export function createFarmTab(): FarmTab {
       game.canvas.focus()
     },
     state(): GameState | null {
-      return null
+      return currentState
     },
-    apply(_next: GameState): void {
-      // The gameplay-adapter lane will connect deterministic farming state to this surface.
+    apply(next: GameState): void {
+      const previous = currentState
+      currentState = next
+      syncLife(previous, next)
+      const runtime = game.runtime
+      if (runtime !== null) {
+        syncEnvironment(runtime, next)
+        if (
+          previous === null ||
+          previous.player.x !== next.player.x ||
+          previous.player.y !== next.player.y ||
+          previous.player.facing !== next.player.facing
+        ) {
+          runtime.setPlayerPose(
+            { x: next.player.x + 0.5, y: 0, z: next.player.y + 0.5 },
+            yawForFacing(next.player.facing),
+          )
+        }
+      }
+      requestAutosave()
+      paintHud(runtime)
     },
     saveNow(): void {
-      // ThreeRuntime owns presentation state only; the shell store remains independent.
+      persistNow()
     },
     destroy(): void {
+      disposed = true
       stopStore()
       stopLang()
+      persistNow()
+      if (saveTimer !== 0) window.clearTimeout(saveTimer)
+      activeInterior?.runtime.dispose()
+      activeInterior = null
+      npcPresentation?.dispose()
+      npcPresentation = null
       game.dispose()
       element.remove()
     },

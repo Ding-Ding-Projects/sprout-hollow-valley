@@ -52,9 +52,16 @@ catalogue is implemented.
   procedural avatars and moving collision targets only near the player; preserves distant logical
   simulation; and exposes accessible interaction targets backed by local authored dialogue.
 - A live Three.js Farm tab with a visible low-poly player, camera-relative walking and sprinting,
-  jumping, streamed fallback terrain, static collision, orbit/zoom/recenter/shoulder controls,
+  jumping, streamed authored valley terrain, static collision, orbit/zoom/recenter/shoulder controls,
   keyboard/mouse/gamepad input through one logical controller, responsive WebGL sizing, readable
   boot/failure states, and shell-owned pause, resume, focus, and disposal.
+- A complete live Farm-tab composition root: existing saves restore into the canonical `GameState`,
+  farming commands write through the inherited deterministic actions and autosave path, the
+  canonical life simulation drives all 240 NPC presentations and local dialogue targets, and
+  camera-center raycasts expose readable keyboard, mouse, gamepad, and DOM-button interactions.
+- Deterministic entry from authored exterior doors into all 700 typed interior graphs, including
+  real room and floor traversal, eventual-access feedback, work stations, sanitation fixtures,
+  operational restroom and hand-washing steps, and an exact return to the exterior pose.
 - A deterministic 3D gameplay adapter that maps stable world-space targets to the existing farming,
   livestock, placement, storage, and production actions, with per-target prompts, placement
   highlights, storage capacity readouts, and complete accessible outcome text.

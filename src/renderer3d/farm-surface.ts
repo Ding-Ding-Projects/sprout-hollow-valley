@@ -1,4 +1,8 @@
-import { createThreeRuntime, type ThreeRuntime } from './runtime'
+import {
+  createThreeRuntime,
+  type ThreeRuntime,
+  type ThreeRuntimeTick,
+} from './runtime'
 
 const MAX_FRAME_SECONDS = 1 / 15
 const MAX_PIXEL_RATIO = 2
@@ -37,6 +41,12 @@ export interface ThreeFarmSurfaceOptions {
   readonly startPaused?: boolean
   readonly onStateChange?: (status: ThreeFarmSurfaceStatus) => void
   readonly onError?: (message: string) => void
+  /** Receives the exact consumed input snapshot after each rendered Three frame. */
+  readonly onFrame?: (frame: {
+    readonly runtime: ThreeRuntime
+    readonly tick: ThreeRuntimeTick
+    readonly deltaSeconds: number
+  }) => void | Promise<void>
 }
 
 export interface ThreeFarmSurfaceHandle {
@@ -158,7 +168,8 @@ export function mountThreeFarmSurface(
         : Math.min(MAX_FRAME_SECONDS, Math.max(0, (time - lastFrameTime) / 1_000))
     lastFrameTime = time
     try {
-      await runtime.tickPlayer(deltaSeconds)
+      const tick = await runtime.tickPlayer(deltaSeconds)
+      await options.onFrame?.({ runtime, tick, deltaSeconds })
     } catch (error) {
       fail(error)
       return

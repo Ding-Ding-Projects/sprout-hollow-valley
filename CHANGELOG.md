@@ -25,6 +25,10 @@ build time, so what you see in the app is what is in the repository.
   readiness, operational gates, the last applied valley minute and stable job serials. Older
   version-one saves receive one deterministic safe idle row per canonical factory, while
   malformed or unknown authored references are refused rather than guessed.
+- Deterministic exact exterior placements for all 400 registered factories and 300 registered
+  buildings, one per content ID, with finite-cell and district directory lookups, bundled
+  recognizable exteriors, visible access lanes, real door and approach metadata, and canonical
+  bindings to the existing enterable interior graphs.
 
 ## [1.2.10] - 2026-08-17
 

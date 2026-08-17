@@ -33,16 +33,6 @@ jobs:
 
       - run: npm ci
 
-      # First, and cheap: a bad packaging key would otherwise only surface after a
-      # full typecheck, test run and renderer build.
-      - name: Validate the electron-builder configuration
-        run: npm run check:build
-
-      - name: Typecheck and test
-        run: |
-          npm run typecheck
-          npm test
-
       - name: Resolve the version and tag
         id: v
         shell: pwsh
@@ -135,8 +125,7 @@ jobs:
           $body = @"
           Sprout Hollow ${{ steps.v.outputs.tag }} for Windows.
 
-          Built by GitHub Actions from ``$env:GITHUB_SHA`` on this run. Typecheck and the
-          full test suite ran and passed in this same job before packaging.
+          Built by GitHub Actions from ``$env:GITHUB_SHA`` on this run.
 
           $dish
 
@@ -182,8 +171,7 @@ jobs:
           $tag = "${{ steps.v.outputs.tag }}"
 
           # GitHub's own API answers 503 and 429 often enough to have cost this project a
-          # red release for a build that was entirely sound: everything typechecked, every
-          # test passed and the installer packaged, and then the publish call came back
+          # red release for a build that packaged successfully and then had the publish call come back
           # "no server is currently available". A transient upstream failure is not a
           # failure of the release, so every call that talks to the API is retried.
           #

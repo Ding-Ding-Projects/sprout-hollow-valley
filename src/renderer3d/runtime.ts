@@ -16,8 +16,16 @@ import {
   type WorldXZ,
 } from '../engine3d'
 import {
+  BoxGeometry,
+  CircleGeometry,
+  ConeGeometry,
+  CylinderGeometry,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
   PerspectiveCamera,
   Scene,
+  Vector3,
   WebGLRenderer,
   type WebGLRendererParameters,
 } from 'three'
@@ -49,6 +57,20 @@ const DEFAULT_WORLD: Pick<WorldCellStreamerOptions, 'worldSeed' | 'cellSize' | '
     loadRadius: 1,
   })
 
+const DEFAULT_PLAYER = Object.freeze({
+  spawn: Object.freeze({ x: 8, y: 0, z: 8 }),
+  walkSpeed: 4.2,
+  sprintSpeed: 7,
+  jumpVelocity: 5.4,
+  gravity: 16,
+  radius: 0.34,
+  height: 1.72,
+})
+
+const POINTER_ORBIT_SCALE = 0.0025
+const KEYBOARD_AND_GAMEPAD_ORBIT_SPEED = 2.2
+const WHEEL_ZOOM_SCALE = 0.01
+
 export interface ThreeRuntimeInputOptions {
   readonly bindings?: InputBindings
   readonly keyboardTarget?: EventTarget
@@ -68,6 +90,13 @@ export interface ThreeRuntimeOptions {
     readonly initial?: EnvironmentSeedState
   }
   readonly input?: ThreeRuntimeInputOptions
+  readonly player?: {
+    readonly spawn?: CameraVector3
+    readonly walkSpeed?: number
+    readonly sprintSpeed?: number
+    readonly jumpVelocity?: number
+    readonly gravity?: number
+  }
   readonly renderer?: Omit<WebGLRendererParameters, 'canvas'>
 }
 
@@ -89,9 +118,101 @@ function resolveDimension(value: number): number {
   return Number.isFinite(value) && value > 0 ? Math.max(1, Math.floor(value)) : 1
 }
 
+function positiveOption(value: number | undefined, fallback: number, label: string): number {
+  const resolved = value ?? fallback
+  if (!Number.isFinite(resolved) || resolved <= 0) {
+    throw new RangeError(`${label} must be a finite positive number`)
+  }
+  return resolved
+}
+
+function finitePosition(position: CameraVector3): Vector3 {
+  if (![position.x, position.y, position.z].every(Number.isFinite)) {
+    throw new RangeError('player spawn must contain finite coordinates')
+  }
+  return new Vector3(position.x, Math.max(0, position.y), position.z)
+}
+
+function createPlayerVisual(): {
+  readonly root: Group
+  readonly shadow: Mesh
+  readonly dispose: () => void
+} {
+  const root = new Group()
+  root.name = 'player-avatar'
+
+  const bodyGeometry = new CylinderGeometry(0.38, 0.44, 0.82, 7)
+  const limbGeometry = new CylinderGeometry(0.12, 0.12, 0.58, 6)
+  const faceGeometry = new BoxGeometry(0.18, 0.18, 0.16)
+  const shadowGeometry = new CircleGeometry(0.48, 16)
+  const hatGeometry = new ConeGeometry(0.48, 0.26, 8)
+  const headGeometry = new CylinderGeometry(0.29, 0.31, 0.48, 8)
+  const geometries = [
+    bodyGeometry,
+    limbGeometry,
+    faceGeometry,
+    shadowGeometry,
+    hatGeometry,
+    headGeometry,
+  ]
+  const materials = [
+    new MeshStandardMaterial({ color: 0x3f7d45, roughness: 0.86, flatShading: true }),
+    new MeshStandardMaterial({ color: 0xe6b98b, roughness: 0.9, flatShading: true }),
+    new MeshStandardMaterial({ color: 0x5b3a29, roughness: 0.94, flatShading: true }),
+    new MeshStandardMaterial({ color: 0xe8c66e, roughness: 0.9, flatShading: true }),
+    new MeshStandardMaterial({ color: 0x17251a, transparent: true, opacity: 0.24, depthWrite: false }),
+  ]
+  const [overallMaterial, skinMaterial, bootMaterial, hatMaterial, shadowMaterial] = materials
+
+  const body = new Mesh(bodyGeometry, overallMaterial)
+  body.name = 'player-body'
+  body.position.y = 0.98
+
+  const head = new Mesh(headGeometry, skinMaterial)
+  head.name = 'player-head'
+  head.position.y = 1.61
+
+  const hat = new Mesh(hatGeometry, hatMaterial)
+  hat.name = 'player-hat'
+  hat.position.y = 1.98
+
+  const face = new Mesh(faceGeometry, bootMaterial)
+  face.name = 'player-facing-marker'
+  face.scale.set(0.72, 0.5, 0.48)
+  face.position.set(0, 1.62, 0.3)
+
+  const leftLeg = new Mesh(limbGeometry, bootMaterial)
+  leftLeg.name = 'player-left-leg'
+  leftLeg.position.set(-0.18, 0.33, 0)
+  const rightLeg = new Mesh(limbGeometry, bootMaterial)
+  rightLeg.name = 'player-right-leg'
+  rightLeg.position.set(0.18, 0.33, 0)
+
+  for (const mesh of [body, head, hat, face, leftLeg, rightLeg]) {
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    root.add(mesh)
+  }
+
+  const shadow = new Mesh(shadowGeometry, shadowMaterial)
+  shadow.name = 'player-ground-shadow'
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = 0.018
+  shadow.renderOrder = 1
+
+  return {
+    root,
+    shadow,
+    dispose: () => {
+      for (const geometry of geometries) geometry.dispose()
+      for (const material of materials) material.dispose()
+    },
+  }
+}
+
 /**
- * Small explicit Three.js composition root. It deliberately owns no animation loop, gameplay
- * definition loader, or wall-clock; the caller drives every frame through `tick`.
+ * Small explicit Three.js composition root. It owns the default third-person player but no
+ * animation loop or wall-clock; the Farm surface drives every frame explicitly.
  */
 export class ThreeRuntime {
   readonly scene = new Scene()
@@ -105,8 +226,19 @@ export class ThreeRuntime {
   readonly environment: EnvironmentSystem
   readonly world: WorldCellStreamer<unknown>
   readonly assets: CoreGltfAssetRegistry
+  readonly playerPosition: Vector3
+  readonly playerAvatar: Group
 
   private readonly ownsAssets: boolean
+  private readonly playerShadow: Mesh
+  private readonly disposePlayerVisual: () => void
+  private readonly playerWalkSpeed: number
+  private readonly playerSprintSpeed: number
+  private readonly playerJumpVelocity: number
+  private readonly playerGravity: number
+  private playerVerticalVelocity = 0
+  private playerGrounded = true
+  private playerFacing = Math.PI
   private disposed = false
   private disposePromise: Promise<void> | undefined
 
@@ -116,6 +248,7 @@ export class ThreeRuntime {
       ...options.world,
     }
     this.renderer = new WebGLRenderer({ antialias: true, ...options.renderer, canvas: options.canvas })
+    this.renderer.shadowMap.enabled = true
     this.collision = new CollisionWorld(worldOptions.cellSize)
     this.cameraController = new ThirdPersonCameraController(this.camera, {
       obstructionQuery: {
@@ -134,6 +267,34 @@ export class ThreeRuntime {
     this.ownsAssets = options.assets === undefined
     const source = options.worldSource ?? this.createDefaultWorldSource(worldOptions.cellSize)
     this.world = new WorldCellStreamer(source, worldOptions)
+
+    this.playerPosition = finitePosition(options.player?.spawn ?? DEFAULT_PLAYER.spawn)
+    this.playerWalkSpeed = positiveOption(
+      options.player?.walkSpeed,
+      DEFAULT_PLAYER.walkSpeed,
+      'player walk speed',
+    )
+    this.playerSprintSpeed = positiveOption(
+      options.player?.sprintSpeed,
+      DEFAULT_PLAYER.sprintSpeed,
+      'player sprint speed',
+    )
+    this.playerJumpVelocity = positiveOption(
+      options.player?.jumpVelocity,
+      DEFAULT_PLAYER.jumpVelocity,
+      'player jump velocity',
+    )
+    this.playerGravity = positiveOption(
+      options.player?.gravity,
+      DEFAULT_PLAYER.gravity,
+      'player gravity',
+    )
+    const playerVisual = createPlayerVisual()
+    this.playerAvatar = playerVisual.root
+    this.playerShadow = playerVisual.shadow
+    this.disposePlayerVisual = playerVisual.dispose
+    this.scene.add(this.playerShadow, this.playerAvatar)
+    this.syncPlayerVisual()
 
     this.input = new InputController(options.input?.bindings)
     const keyboardTarget = options.input?.keyboardTarget ?? defaultEventTarget(options.canvas)
@@ -155,25 +316,24 @@ export class ThreeRuntime {
 
   /** Poll adapters, advance explicit systems, stream near the player, then render one frame. */
   async tick(deltaSeconds: number, playerPosition: CameraVector3): Promise<ThreeRuntimeTick> {
-    if (this.disposed) throw new Error('ThreeRuntime is disposed')
-    if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
-      throw new RangeError('deltaSeconds must be a finite non-negative number')
-    }
+    this.assertTick(deltaSeconds)
+    const input = this.captureInput()
+    this.applyCameraInput(deltaSeconds, input, 0)
+    return this.renderFrame(deltaSeconds, playerPosition, input)
+  }
 
-    this.gamepadInput.poll()
-    const input = this.input.snapshot()
-    this.cameraController.orbitBy(input.axes.lookX * deltaSeconds + input.pointerDelta.x, input.axes.lookY * deltaSeconds + input.pointerDelta.y)
-    this.cameraController.zoomBy(input.wheelDelta + (input.buttons.zoomOut.down ? deltaSeconds : 0) - (input.buttons.zoomIn.down ? deltaSeconds : 0))
-    if (input.buttons.switchShoulder.pressed) this.cameraController.toggleShoulder()
-    if (input.buttons.recenterCamera.pressed) this.cameraController.recenter(0)
+  /** Advance the built-in controllable player and render it in the streamed world. */
+  async tickPlayer(deltaSeconds: number): Promise<ThreeRuntimeTick> {
+    this.assertTick(deltaSeconds)
+    const input = this.captureInput()
+    this.applyCameraInput(deltaSeconds, input, this.playerFacing - Math.PI)
+    this.movePlayer(deltaSeconds, input)
+    return this.renderFrame(deltaSeconds, this.playerPosition, input)
+  }
 
-    this.cameraController.setTarget(playerPosition)
-    this.cameraController.update(deltaSeconds)
-    this.environment.update({ deltaTicks: deltaSeconds })
-    this.environment.applyExposure(this.renderer)
-    const world = await this.world.update(this.worldPosition(playerPosition))
-    this.renderer.render(this.scene, this.camera)
-    return Object.freeze({ input, world })
+  /** Drop held and transient input when the shell suspends the Farm tab. */
+  clearInput(): void {
+    this.input.clear()
   }
 
   resize(width = this.options.canvas.clientWidth, height = this.options.canvas.clientHeight): void {
@@ -205,6 +365,106 @@ export class ThreeRuntime {
     return { x: position.x, z: position.z }
   }
 
+  private assertTick(deltaSeconds: number): void {
+    if (this.disposed) throw new Error('ThreeRuntime is disposed')
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
+      throw new RangeError('deltaSeconds must be a finite non-negative number')
+    }
+  }
+
+  private captureInput(): InputSnapshot {
+    this.gamepadInput.poll()
+    return this.input.snapshot()
+  }
+
+  private applyCameraInput(
+    deltaSeconds: number,
+    input: InputSnapshot,
+    recenterYaw: number,
+  ): void {
+    this.cameraController.orbitBy(
+      input.axes.lookX * deltaSeconds * KEYBOARD_AND_GAMEPAD_ORBIT_SPEED +
+        input.pointerDelta.x * POINTER_ORBIT_SCALE,
+      input.axes.lookY * deltaSeconds * KEYBOARD_AND_GAMEPAD_ORBIT_SPEED +
+        input.pointerDelta.y * POINTER_ORBIT_SCALE,
+    )
+    this.cameraController.zoomBy(
+      input.wheelDelta * WHEEL_ZOOM_SCALE +
+        (input.buttons.zoomOut.down ? deltaSeconds : 0) -
+        (input.buttons.zoomIn.down ? deltaSeconds : 0),
+    )
+    if (input.buttons.switchShoulder.pressed) this.cameraController.toggleShoulder()
+    if (input.buttons.recenterCamera.pressed) this.cameraController.recenter(recenterYaw)
+  }
+
+  private movePlayer(deltaSeconds: number, input: InputSnapshot): void {
+    if (input.buttons.jump.pressed && this.playerGrounded) {
+      this.playerGrounded = false
+      this.playerVerticalVelocity = this.playerJumpVelocity
+    }
+
+    if (!this.playerGrounded || this.playerVerticalVelocity !== 0) {
+      this.playerVerticalVelocity -= this.playerGravity * deltaSeconds
+      this.playerPosition.y += this.playerVerticalVelocity * deltaSeconds
+      if (this.playerPosition.y <= 0) {
+        this.playerPosition.y = 0
+        this.playerVerticalVelocity = 0
+        this.playerGrounded = true
+      }
+    }
+
+    const yaw = this.cameraController.state.desiredYaw
+    const rightX = Math.cos(yaw)
+    const rightZ = -Math.sin(yaw)
+    const forwardX = -Math.sin(yaw)
+    const forwardZ = -Math.cos(yaw)
+    const moveX = rightX * input.axes.moveX + forwardX * input.axes.moveY
+    const moveZ = rightZ * input.axes.moveX + forwardZ * input.axes.moveY
+    const magnitude = Math.hypot(moveX, moveZ)
+    const normalX = magnitude > 1 ? moveX / magnitude : moveX
+    const normalZ = magnitude > 1 ? moveZ / magnitude : moveZ
+    const speed = input.buttons.sprint.down ? this.playerSprintSpeed : this.playerWalkSpeed
+    const moved = this.collision.moveHorizontal(
+      {
+        position: this.playerPosition,
+        radius: DEFAULT_PLAYER.radius,
+        height: DEFAULT_PLAYER.height,
+      },
+      { x: normalX * speed * deltaSeconds, z: normalZ * speed * deltaSeconds },
+    )
+    this.playerPosition.x = moved.position.x
+    this.playerPosition.z = moved.position.z
+
+    if (Math.hypot(moved.applied.x, moved.applied.z) > 1e-5) {
+      this.playerFacing = Math.atan2(moved.applied.x, moved.applied.z)
+    }
+    this.syncPlayerVisual()
+  }
+
+  private syncPlayerVisual(): void {
+    this.playerAvatar.position.copy(this.playerPosition)
+    this.playerAvatar.rotation.y = this.playerFacing
+    this.playerShadow.position.x = this.playerPosition.x
+    this.playerShadow.position.z = this.playerPosition.z
+    const airborneScale = Math.max(0.55, 1 - this.playerPosition.y * 0.12)
+    this.playerShadow.scale.setScalar(airborneScale)
+  }
+
+  private async renderFrame(
+    deltaSeconds: number,
+    playerPosition: CameraVector3,
+    input: InputSnapshot,
+  ): Promise<ThreeRuntimeTick> {
+    this.cameraController.setTarget(playerPosition)
+    this.cameraController.update(deltaSeconds)
+    this.environment.update({ deltaTicks: deltaSeconds })
+    this.environment.applyExposure(this.renderer)
+    const world = await this.world.update(this.worldPosition(playerPosition))
+    if (this.disposed) throw new Error('ThreeRuntime is disposed')
+    this.renderer.render(this.scene, this.camera)
+    return Object.freeze({ input, world })
+  }
+
   private async disposeRuntime(): Promise<void> {
     this.domInput.dispose()
     this.gamepadInput.dispose()
@@ -216,6 +476,8 @@ export class ThreeRuntime {
     }
     this.environment.dispose()
     this.collision.clearStaticColliders()
+    this.scene.remove(this.playerAvatar, this.playerShadow)
+    this.disposePlayerVisual()
     if (this.ownsAssets) this.assets.clearUnused()
     this.renderer.dispose()
     if (failure !== undefined) throw failure

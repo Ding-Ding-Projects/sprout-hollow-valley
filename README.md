@@ -5,11 +5,12 @@ farming and life-simulation product. It is derived from Sprout Hollow under the 
 but it has its own application identity, local data, save format, updates, executable,
 installer, exports, repository, and release channel.
 
-This repository is currently a **product foundation**, not a completed 3D game. It establishes
-the Valley identity, an accessible farm-themed Material 3 shell and responsive website
-direction, public product contracts, and a path for retaining useful deterministic farming
-rules. The connected 3D valley, full content catalogue, 700 finished structures, and complete
-240-person life simulation remain planned until their implementations and evidence exist.
+This repository is currently a **playable 3D foundation**, not a completed farming game. The
+packaged Farm tab now runs a responsive third-person Three.js world with a controllable
+low-poly player, camera-relative keyboard/mouse/gamepad input, collision, camera orbit, streamed
+fallback terrain, and shell-aware pause/resume behavior. The fully authored connected valley,
+complete farming adapter, finished structure catalogue, and complete 240-person life simulation
+remain incomplete until their implementations and evidence exist.
 
 Start with:
 
@@ -178,6 +179,7 @@ PNG is the source of truth; do not edit the generated ICO by hand.
 electron/                    Electron main process, preload boundary, and Windows identity
 assets/branding/             Original application mark, source master, and generated Windows icon
 src/shell/                   Application-shell state, language, navigation, and UI foundation
+src/renderer3d/              Live Three.js Farm surface, player, camera, streamed world, and assets
 site/                        Responsive public website
 docs/VALLEY-PRODUCT.md       Third-person 3D product contract
 docs/VALLEY-COMPLETENESS.md  Per-surface completeness and evidence inventory

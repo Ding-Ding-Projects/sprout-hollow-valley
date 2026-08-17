@@ -12,6 +12,11 @@ build time, so what you see in the app is what is in the repository.
 
 ## [1.2.10] - 2026-08-17
 
+### Fixed
+
+- Windows packaging now resolves the estate-farming description state from its canonical
+  `Valley3DEstateFarmingStateV1` type without changing farming runtime behavior.
+
 ### Added
 
 - Persistent deterministic farming in every authored estate: each of the eight estate cells now

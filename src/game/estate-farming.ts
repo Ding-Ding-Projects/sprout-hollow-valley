@@ -27,6 +27,7 @@ import type {
   Plant,
   Tile,
   ToolId,
+  Valley3DEstateFarmingStateV1,
   Valley3DEstateId,
   Valley3DEstatePlotTileV1,
 } from './types'

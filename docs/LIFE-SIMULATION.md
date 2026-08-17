@@ -129,6 +129,64 @@ tied to rendered frames. `simulateDays()` advances whole days through the same
 logical path, making multi-year simulation practical without loading all NPC
 models or all structure instances.
 
+### Three.js presentation adapter
+
+`src/renderer3d/npcs` bridges that complete logical population into the live
+Three.js scene without becoming a second simulation. `NpcPresentationAdapter`
+validates that the supplied definitions and state cover exactly 240 unique,
+named NPCs, resolves a deterministic presentation placement for every member of
+the roster, and materializes only NPCs in the viewer's streamed exterior or
+interior space and within the configured radius. Culling removes an avatar and
+its moving collision proxy; it does not remove, pause, or modify the NPC's life
+state.
+
+The default placement resolver covers every typed schedule destination:
+
+- commute blocks follow a deterministic exterior path between the bound home
+  and workplace;
+- community blocks use stable authored valley anchors plus per-NPC crowd and
+  schedule-progress offsets;
+- home and work blocks carry the bound structure instance and corresponding
+  primary or operations room;
+- toilet, sink, and shower blocks resolve to the structure's real restroom
+  room context.
+
+The resolver is replaceable, so an authored valley/interior renderer can supply
+exact door, room, station, fixture, and navigation anchors while keeping the
+same lifecycle. The procedural fallback avatars use only bundled Three.js
+geometry and materials. Their low-poly appearance, pose phase, facing, gait,
+and work gesture come from the NPC definition and logical
+`presentationProgress`; there are no model downloads, wall-clock animation
+inputs, or unseeded random values.
+
+The integration surface is intentionally small:
+
+```ts
+const npcPresentation = createNpcPresentationAdapter({
+  parent: threeRuntime.scene,
+  collision: threeRuntime.collision,
+})
+
+const frame = npcPresentation.update({
+  state: lifeState,
+  viewer: {
+    position: playerPosition,
+    space: { kind: 'exterior', worldId: 'sprout-hollow-valley' },
+  },
+})
+```
+
+`frame.nearbyNpcIds` is the presentation adapter's only feedback to the life
+layer; callers can pass it to the next deterministic simulation advancement to
+select near-tier presentation progress. The adapter never advances or mutates
+the state itself. `frame.interactionTargets` supplies stable collider IDs,
+Three objects, positions, distances, accessible talk labels, and a selected
+local authored line. Ray-based callers can map a collision hit through
+`interactionTargetForCollider()`, while `conversationPrompt()` and
+`conversationPrompts()` expose one topic or all 12 authored topics using the
+current location, room, activity, calendar, relationships, events, nearby
+population, memories, gifts, and requests.
+
 ## Local authored dialogue
 
 Dialogue is bundled and local. Each of the 240 NPCs has a contextual line and
@@ -241,6 +299,7 @@ directly.
 | `src/life/relationships.ts` | Immutable consent-gated relationship transitions. |
 | `src/life/events.ts` | Deterministic event creation, idempotent application, individual resolution, and stable due-event resolution. |
 | `src/life/dialogue.ts` | Local dialogue catalogue, condition matching, and stable dialogue selection. |
+| `src/renderer3d/npcs` | Deterministic placement, bounded procedural avatar and collision lifecycle, interaction targets, and local authored conversation prompts for all 240 NPCs. |
 
 ## Validation and failure behavior
 

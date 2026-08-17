@@ -36,7 +36,6 @@ import type {
   FootprintDef,
   LocalizationCatalog,
   ProductDef,
-  RecipeDef,
   SanitationDef,
   StructureRoomDef,
   StructureStationDef,

@@ -43,6 +43,30 @@ directory, update feed, executable, and fresh versioned save format.
 - Excluded from the first complete release: multiplayer, online accounts,
   cloud saves, microtransactions, and paid content.
 
+## Implementation worktrees
+
+Major implementation areas are developed in separate Git worktrees so builds,
+tests, generated assets, and edits cannot invalidate another lane's evidence.
+Each worktree owns one feature branch and a non-overlapping path boundary:
+
+- `feat/three-world`: Three.js rendering, third-person input and camera,
+  collision, asset loading, and deterministic world-cell streaming.
+- `feat/expanded-content`: the typed 5,000-definition content catalogue,
+  reference validation, and catalogue documentation.
+- `feat/enterable-interiors`: room graphs, real doors, stations, fixtures,
+  restrooms, hand washing, sanitation, and interior validation.
+- `feat/npc-life-simulation`: the 240 named NPCs, households, work,
+  schedules, needs, dialogue, relationships, and reversible life events.
+- `feat/valley-shell-docs`: product identity, desktop shell, responsive site,
+  localization, accessibility inventory, and release-facing documentation.
+
+Each lane commits and publishes its own branch without merging the default
+branch. Integration reviews exact branch tips, resolves shared-manifest edits
+centrally, runs local checks against the integrated commit, and proves each
+source tip is contained before any worktree or branch becomes a cleanup
+candidate. Long-running verification and packaging use their own clean
+worktrees pinned to the exact commit being judged.
+
 ## World, farming, and content
 
 The connected valley contains the player estate, town, market district,

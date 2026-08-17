@@ -14,6 +14,7 @@ export type NonFactoryContext =
 
 export type StructureContext = 'factory' | NonFactoryContext
 export type ActorKind = 'player' | 'npc'
+export type VerticalTraversalKind = 'stairs' | 'elevator'
 
 export type RoomPurpose =
   | 'entry'
@@ -66,6 +67,10 @@ export interface RoomDef {
   readonly name: string
   readonly purpose: RoomPurpose
   readonly gameplayPurpose: string
+  /** Zero-based authored floor used by navigation and renderer adapters. */
+  readonly floor: number
+  /** Stable navigation-region identity for deterministic room streaming. */
+  readonly navigationRegionId: string
   readonly accessible: boolean
   readonly doorIds: readonly string[]
   readonly stationIds: readonly string[]
@@ -82,6 +87,8 @@ export interface DoorDef {
   readonly exterior: boolean
   readonly bidirectional: boolean
   readonly accessible: boolean
+  /** Empty for same-floor doors; otherwise lists every catalogued vertical route. */
+  readonly verticalTraversal: readonly VerticalTraversalKind[]
   readonly access: DoorAccessDef
   readonly interaction: InteractionDef
 }

@@ -10,6 +10,12 @@ export default defineConfig(({ command }) => ({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        index: 'index.html',
+        engine3d: 'src/renderer3d/index.ts',
+      },
+    },
   },
   server: {
     port: 5173,

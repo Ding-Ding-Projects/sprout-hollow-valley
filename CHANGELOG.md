@@ -34,6 +34,10 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - Third-person low-poly 3D direction for camera behavior, deterministic terrain-cell streaming,
   separately streamed room graphs, real door destinations, functional interiors, and accessible
   interaction targeting.
+- A deterministic Three.js presentation adapter for all 240 persistent named NPCs. It resolves
+  schedule, job, home, community, commute, room, and sanitation context; materializes bounded
+  procedural avatars and moving collision targets only near the player; preserves distant logical
+  simulation; and exposes accessible interaction targets backed by local authored dialogue.
 - An original Sprout Hollow Valley application mark with a committed alpha master and a
   deterministic ten-frame Windows icon generator, wired into executable and Squirrel.Windows
   metadata while preserving unsigned packaging.

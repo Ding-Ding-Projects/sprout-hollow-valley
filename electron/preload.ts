@@ -1,6 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import { IPC_CHANNELS } from './identity'
+
+/**
+ * Keep the sandboxed preload self-contained. Electron gives sandboxed preloads a
+ * restricted CommonJS loader which cannot resolve local modules such as
+ * `./identity`; a relative import here would prevent the bridge from being exposed.
+ * These stable transport names intentionally mirror `identity.ts`.
+ */
+const IPC_CHANNELS = Object.freeze({
+  saveRead: 'sprout-hollow-valley:save:read',
+  saveWrite: 'sprout-hollow-valley:save:write',
+  saveClear: 'sprout-hollow-valley:save:clear',
+  windowMinimize: 'sprout-hollow-valley:window:minimize',
+  windowMaximize: 'sprout-hollow-valley:window:maximize',
+  windowClose: 'sprout-hollow-valley:window:close',
+  windowIsMaximized: 'sprout-hollow-valley:window:is-maximized',
+  windowMaximizedChanged: 'sprout-hollow-valley:window:maximized-changed',
+})
 
 /** Called with the window's new maximised state whenever the main process reports one. */
 type MaximizedListener = (maximized: boolean) => void

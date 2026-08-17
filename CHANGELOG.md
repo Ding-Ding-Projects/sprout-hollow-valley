@@ -20,6 +20,9 @@ catalogue is implemented.
 
 ### Fixed
 
+- Windows packaging now compiles the 3D gameplay overlay and Farm-tab life-simulation bridge
+  with explicit target narrowing, the canonical nearby-NPC context key, and initialized clock
+  control.
 - Release publishing is now explicit and create-once. Ordinary `main` pushes cannot publish;
   tag runs must exactly match the manifest version, manual runs require an unused version tag,
   and preflight rejects an existing release before packaging. The workflow never moves tags,

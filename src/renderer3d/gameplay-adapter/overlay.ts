@@ -61,16 +61,18 @@ function storageRows(state: GameState): readonly StorageOverlayRow[] {
 }
 
 function machineAtTarget(state: GameState, target: ResolvedGameplayTarget): Machine | null {
-  if (target.ref.kind === 'machine') {
-    return state.machines.find((entry) => entry.id === target.ref.machineId) ?? null
+  const ref = target.ref
+  if (ref.kind === 'machine') {
+    return state.machines.find((entry) => entry.id === ref.machineId) ?? null
   }
   const id = target.tile === null ? null : state.tiles[target.tile.index]?.machineId
   return id === null ? null : (state.machines.find((entry) => entry.id === id) ?? null)
 }
 
 function buildingAtTarget(state: GameState, target: ResolvedGameplayTarget): Building | null {
-  if (target.ref.kind === 'building') {
-    return state.buildings.find((entry) => entry.id === target.ref.buildingId) ?? null
+  const ref = target.ref
+  if (ref.kind === 'building') {
+    return state.buildings.find((entry) => entry.id === ref.buildingId) ?? null
   }
   if (target.tile === null) return null
   const direct = state.tiles[target.tile.index]?.buildingId
@@ -146,8 +148,9 @@ function animalOptions(
   state: GameState,
   target: ResolvedGameplayTarget,
 ): readonly GameplayInteractionOption[] {
-  if (target.ref.kind !== 'animal') return []
-  const animal = state.animals.find((entry) => entry.id === target.ref.animalId)
+  const ref = target.ref
+  if (ref.kind !== 'animal') return []
+  const animal = state.animals.find((entry) => entry.id === ref.animalId)
   if (animal === undefined) return []
   const enabled = target.reachable
   return Object.freeze([
@@ -214,15 +217,16 @@ function stationOptions(
   state: GameState,
   target: ResolvedGameplayTarget,
 ): readonly GameplayInteractionOption[] {
-  if (target.ref.kind !== 'station') return []
-  const interior = interiorFor(state, target.ref.buildingId)
-  const station = interior?.stations.find((entry) => gameplayStationKey(entry) === target.ref.stationKey)
+  const ref = target.ref
+  if (ref.kind !== 'station') return []
+  const interior = interiorFor(state, ref.buildingId)
+  const station = interior?.stations.find((entry) => gameplayStationKey(entry) === ref.stationKey)
   if (station === undefined) return []
   return Object.freeze([
     option('use-station', `Use ${station.label}`, 'Use the interior station and any requested panel.', target.reachable, {
       kind: 'use-station',
-      buildingId: target.ref.buildingId,
-      stationKey: target.ref.stationKey,
+      buildingId: ref.buildingId,
+      stationKey: ref.stationKey,
     }),
   ])
 }

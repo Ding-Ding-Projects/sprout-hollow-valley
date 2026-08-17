@@ -867,10 +867,12 @@ export function createFarmTab(): FarmTab {
       }
     }
     if (targetMinute > lifeMinute) {
-      lifeState = advanceLifeSimulation(lifeState, targetMinute - lifeMinute, { nearbyNpcIds })
+      lifeState = advanceLifeSimulation(lifeState, targetMinute - lifeMinute, {
+        nearbyNPCIds: nearbyNpcIds,
+      })
       lifeMinute = targetMinute
     } else {
-      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNpcIds })
+      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNPCIds: nearbyNpcIds })
     }
   }
 
@@ -1422,7 +1424,7 @@ export function createFarmTab(): FarmTab {
     const nextKey = [...nextNearby].sort().join('|')
     nearbyNpcIds = nextNearby
     if (previousKey !== nextKey) {
-      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNpcIds })
+      lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNPCIds: nearbyNpcIds })
       requestAutosave()
     }
   }
@@ -1493,6 +1495,19 @@ export function createFarmTab(): FarmTab {
     })
   }
 
+  /* -- visibility -- */
+
+  let visible = false
+
+  const applyClock = (): void => {
+    const shouldRun = visible || !gameOptions().pauseWhenHidden
+    if (shouldRun) game.resume()
+    else {
+      game.pause()
+      persistNow()
+    }
+  }
+
   void (async () => {
     const saved = await loadSave()
     if (disposed) return
@@ -1521,19 +1536,6 @@ export function createFarmTab(): FarmTab {
     announceFeedback(error instanceof Error ? error.message : String(error))
     paintHud(game.runtime)
   })
-
-  /* -- visibility -- */
-
-  let visible = false
-
-  const applyClock = (): void => {
-    const shouldRun = visible || !gameOptions().pauseWhenHidden
-    if (shouldRun) game.resume()
-    else {
-      game.pause()
-      persistNow()
-    }
-  }
 
   const stopStore = subscribe(() => {
     // `pauseWhenHidden` can be turned off while the Farm tab is in the background.

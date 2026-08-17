@@ -1,4 +1,6 @@
 import type { SEASONS } from './constants'
+import type { ActiveInteriorUse, SanitationStage } from '../interiors/runtime'
+import type { LifeSimulationState } from '../life/types'
 import type {
   Animal,
   Building,
@@ -123,6 +125,62 @@ export interface InventoryEntry {
   count: number
 }
 
+/** JSON-safe vector used by the optional third-person Valley save section. */
+export interface Valley3DVector {
+  x: number
+  y: number
+  z: number
+}
+
+export interface Valley3DPose {
+  position: Valley3DVector
+  /** World yaw in radians. Keeping the continuous angle avoids cardinal-direction drift. */
+  facingYaw: number
+}
+
+export interface Valley3DExteriorState extends Valley3DPose {
+  /** Stable authored-world registry IDs, or null while migrating an older save. */
+  regionId: string | null
+  estateId: string | null
+}
+
+export interface Valley3DDoorAccessState {
+  doorId: string
+  stepIds: string[]
+}
+
+/**
+ * Persistent interior state contains logical progress only. Presentation objects, meshes,
+ * colliders, and transient runtime events are rebuilt from the authored graph on restore.
+ */
+export interface Valley3DInteriorStateV1 {
+  structureContentId: string
+  graphId: string
+  roomId: string
+  floor: number
+  position: Valley3DVector
+  exteriorReturnPose: Valley3DPose
+  resolvedDoorAccess: Valley3DDoorAccessState[]
+  activeUse: ActiveInteriorUse | null
+  sanitationStage: SanitationStage
+  hygieneComplete: boolean
+  serial: number
+  tick: number
+  useCounts: Record<string, number>
+  revision: number
+}
+
+/**
+ * Backward-compatible extension of the canonical farm save. The outer section is optional so
+ * version-one farm saves written before the live 3D composition remain valid.
+ */
+export interface Valley3DSaveV1 {
+  version: 1
+  exterior: Valley3DExteriorState
+  life: LifeSimulationState
+  interior: Valley3DInteriorStateV1 | null
+}
+
 export interface GameState {
   version: number
   /** Seeds every deterministic roll in the run. */
@@ -164,6 +222,9 @@ export interface GameState {
   loans: Loan[]
   /** Slots on the roadside stall, each with a player-set price. */
   stall: StallSlot[]
+
+  /** Versioned live 3D composition state. Absent only on pre-migration in-memory values. */
+  valley3d?: Valley3DSaveV1
 }
 
 /** Identifier for a runtime-synthesised sound effect. */

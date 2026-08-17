@@ -59,6 +59,12 @@ catalogue is implemented.
   farming commands write through the inherited deterministic actions and autosave path, the
   canonical life simulation drives all 240 NPC presentations and local dialogue targets, and
   camera-center raycasts expose readable keyboard, mouse, gamepad, and DOM-button interactions.
+- An optional, versioned `GameState.valley3d` v1 section that preserves the exact 240-NPC life and
+  event snapshot, exterior pose and authored region or estate, active interior room and return
+  pose, resolved door access, active station or fixture use, and sanitation progress. Older or
+  invalid optional sections migrate to deterministic defaults, while restore refuses authored IDs
+  that no longer resolve. The Farm tab refreshes this state on mutations, autosave, explicit save,
+  pause, and disposal.
 - Deterministic entry from authored exterior doors into all 700 typed interior graphs, including
   real room and floor traversal, eventual-access feedback, work stations, sanitation fixtures,
   operational restroom and hand-washing steps, and an exact return to the exterior pose.

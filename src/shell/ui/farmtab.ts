@@ -30,12 +30,35 @@
 import { CROPS } from '../../game/crops'
 import { createState } from '../../game/state'
 import { formatClock } from '../../game/time'
-import type { Facing, GameState, Quality, Season, ToolId } from '../../game/types'
+import type {
+  Facing,
+  GameState,
+  Quality,
+  Season,
+  ToolId,
+  Valley3DExteriorState,
+  Valley3DInteriorStateV1,
+  Valley3DSaveV1,
+  Valley3DVector,
+} from '../../game/types'
+import {
+  gameMinuteIndex,
+  lifeMinuteIndex,
+  normalizeValleyYaw,
+  VALLEY3D_SAVE_VERSION,
+  yawForFarmFacing,
+} from '../../game/valley3d-save'
 import { VALLEY_BUILDINGS, VALLEY_FACTORIES } from '../../content/valley-structures'
 import type { StaticCollider, Vec3 } from '../../engine3d'
-import { requireInteriorById, type InteriorGraph } from '../../interiors'
+import {
+  requireInteriorById,
+  type DoorAccessResolution,
+  type InteriorActorState,
+  type InteriorGraph,
+} from '../../interiors'
 import { structureDefinitionId } from '../../life/catalog'
 import { NPC_DEFINITIONS } from '../../life/npcs'
+import { cloneLifeSimulationState, readLifeSimulationState } from '../../life/persistence'
 import { advanceLifeSimulation } from '../../life/simulation'
 import { createLifeSimulation } from '../../life/state'
 import type { LifeSimulationState } from '../../life/types'
@@ -62,8 +85,15 @@ import {
   createThreeInteriorRuntime,
   type ThreeInteriorActionResult,
   type ThreeInteriorRuntimeAdapter,
+  type ThreeInteriorRuntimeSnapshot,
 } from '../../renderer3d/interiors'
 import type { ThreeRuntime, ThreeRuntimeTick } from '../../renderer3d/runtime'
+import {
+  AUTHORED_ESTATE_ZONES,
+  AUTHORED_VALLEY_CELL_SIZE,
+  AUTHORED_VALLEY_REGIONS,
+  authoredValleyLocationAt,
+} from '../../renderer3d/world'
 import {
   Object3D,
   Raycaster,
@@ -367,12 +397,6 @@ const TOOL_ORDER: readonly ToolId[] = [
   'sprinkler',
   'fertilizer',
 ]
-const SEASON_ORDINAL: Readonly<Record<Season, number>> = {
-  spring: 0,
-  summer: 1,
-  fall: 2,
-  winter: 3,
-}
 
 interface StructureBinding {
   readonly contentId: string
@@ -418,6 +442,126 @@ const BUILDING_BINDINGS: readonly StructureBinding[] = VALLEY_BUILDINGS.map(
 const STRUCTURE_BINDING_BY_CONTENT_ID: ReadonlyMap<string, StructureBinding> = new Map(
   [...FACTORY_BINDINGS, ...BUILDING_BINDINGS].map((binding) => [binding.contentId, binding]),
 )
+const AUTHORED_REGION_IDS: ReadonlySet<string> = new Set(
+  AUTHORED_VALLEY_REGIONS.map((region) => region.id),
+)
+const AUTHORED_ESTATE_BY_ID = new Map(
+  AUTHORED_ESTATE_ZONES.map((estate) => [estate.id, estate]),
+)
+
+function vector(point: Readonly<{ x: number; y: number; z: number }>): Valley3DVector {
+  return { x: point.x, y: point.y, z: point.z }
+}
+
+function exteriorForPose(position: Readonly<Vec3>, facingYaw: number): Valley3DExteriorState {
+  const location = authoredValleyLocationAt(position, AUTHORED_VALLEY_CELL_SIZE)
+  return {
+    position: vector(position),
+    facingYaw: normalizeValleyYaw(facingYaw),
+    regionId: location?.regionId ?? null,
+    estateId: location?.estateId ?? null,
+  }
+}
+
+function legacyExterior(state: GameState): Valley3DExteriorState {
+  return exteriorForPose(
+    { x: state.player.x + 0.5, y: 0, z: state.player.y + 0.5 },
+    yawForFarmFacing(state.player.facing),
+  )
+}
+
+function posesMatch(
+  left: Readonly<{ position: Valley3DVector; facingYaw: number }>,
+  right: Readonly<{ position: Valley3DVector; facingYaw: number }>,
+): boolean {
+  return (
+    left.position.x === right.position.x &&
+    left.position.y === right.position.y &&
+    left.position.z === right.position.z &&
+    normalizeValleyYaw(left.facingYaw) === normalizeValleyYaw(right.facingYaw)
+  )
+}
+
+function exteriorReferencesCurrentRegistry(exterior: Valley3DExteriorState): boolean {
+  const location = authoredValleyLocationAt(exterior.position, AUTHORED_VALLEY_CELL_SIZE)
+  if (location === null) return exterior.regionId === null && exterior.estateId === null
+  if (
+    exterior.regionId === null ||
+    exterior.regionId !== location.regionId ||
+    !AUTHORED_REGION_IDS.has(exterior.regionId)
+  ) {
+    return false
+  }
+  if (exterior.estateId !== location.estateId) return false
+  if (exterior.estateId === null) return true
+  return AUTHORED_ESTATE_BY_ID.get(exterior.estateId)?.regionId === exterior.regionId
+}
+
+function restoredInteriorSnapshot(
+  binding: StructureBinding,
+  saved: Valley3DInteriorStateV1,
+): ThreeInteriorRuntimeSnapshot | null {
+  if (saved.graphId !== binding.graph.id) return null
+  const room = binding.graph.rooms.find((candidate) => candidate.id === saved.roomId)
+  if (room === undefined || room.floor !== saved.floor) return null
+
+  const doorAccess: Record<string, DoorAccessResolution> = {}
+  for (const entry of saved.resolvedDoorAccess) {
+    const door = binding.graph.doors.find((candidate) => candidate.id === entry.doorId)
+    if (door === undefined || doorAccess[entry.doorId] !== undefined) return null
+    const expected = door.access.eventualAccess.map((step) => step.id)
+    if (
+      expected.length !== entry.stepIds.length ||
+      !expected.every((stepId, index) => stepId === entry.stepIds[index])
+    ) {
+      return null
+    }
+    doorAccess[entry.doorId] = { doorId: entry.doorId, stepIds: [...entry.stepIds] }
+  }
+
+  const activeUse = saved.activeUse
+  if (activeUse !== null) {
+    const target = activeUse.kind === 'station'
+      ? binding.graph.stations.find((candidate) => candidate.id === activeUse.targetId)
+      : binding.graph.fixtures.find((candidate) => candidate.id === activeUse.targetId)
+    if (
+      target === undefined ||
+      target.roomId !== saved.roomId ||
+      target.roomId !== activeUse.roomId ||
+      target.interaction.durationTicks !== activeUse.durationTicks
+    ) {
+      return null
+    }
+  }
+
+  const knownUseTargetIds = new Set<string>([
+    ...binding.graph.stations.map((station) => station.id),
+    ...binding.graph.fixtures.map((fixture) => fixture.id),
+  ])
+  if (Object.keys(saved.useCounts).some((targetId) => !knownUseTargetIds.has(targetId))) return null
+
+  const actor: InteriorActorState = {
+    actorId: 'player',
+    actorKind: 'player',
+    npcRole: null,
+    presence: activeUse === null ? 'inside' : 'using',
+    structureId: binding.graph.id,
+    roomId: saved.roomId,
+    activeUse: activeUse === null ? null : { ...activeUse },
+    sanitationStage: saved.sanitationStage,
+    hygieneComplete: saved.hygieneComplete,
+    serial: saved.serial,
+    tick: saved.tick,
+    events: [],
+    useCounts: { ...saved.useCounts },
+  }
+  return {
+    actor,
+    position: vector(saved.position),
+    doorAccess,
+    revision: saved.revision,
+  }
+}
 
 function freshGameSeed(): number {
   try {
@@ -426,25 +570,6 @@ function freshGameSeed(): number {
     return (value[0] ?? 1) & 0x7fffffff
   } catch {
     return 0x534856
-  }
-}
-
-function gameMinuteIndex(state: GameState): number {
-  const absoluteDay =
-    (state.year - 1) * 4 * 28 + SEASON_ORDINAL[state.season] * 28 + (state.day - 1)
-  return absoluteDay * 24 * 60 + state.minutes
-}
-
-function yawForFacing(facing: Facing): number {
-  switch (facing) {
-    case 'up':
-      return Math.PI
-    case 'down':
-      return 0
-    case 'left':
-      return -Math.PI / 2
-    case 'right':
-      return Math.PI / 2
   }
 }
 
@@ -506,7 +631,7 @@ export interface FarmTab {
   isRunning(): boolean
   /** Moves keyboard focus onto the farm. */
   focus(): void
-  /** Reserved for the deterministic gameplay adapter; the 3D runtime owns no save yet. */
+  /** Captures farm, life simulation, exterior pose, and active interior progress immediately. */
   saveNow(): void
   /** The adapted farming state, or null while only the fallback 3D world is mounted. */
   state(): GameState | null
@@ -624,6 +749,61 @@ export function createFarmTab(): FarmTab {
   const raycaster = new Raycaster()
   const screenCentre = new Vector2(0, 0)
 
+  const captureValleyState = (runtime: ThreeRuntime | null): void => {
+    const state = currentState
+    if (state === null) return
+    const life = lifeState ?? createLifeSimulation(state.seed)
+    const active = activeInterior
+    const exterior = active !== null
+      ? exteriorForPose(active.exteriorPosition, active.exteriorFacing)
+      : runtime !== null
+        ? exteriorForPose(runtime.playerPosition, runtime.playerYaw)
+        : state.valley3d?.exterior ?? legacyExterior(state)
+    let interior: Valley3DInteriorStateV1 | null = null
+    if (active !== null) {
+      const snapshot = active.runtime.current
+      const roomId = snapshot.actor.roomId
+      const room = roomId === null
+        ? undefined
+        : active.binding.graph.rooms.find((candidate) => candidate.id === roomId)
+      if (room !== undefined && snapshot.position !== null) {
+        interior = {
+          structureContentId: active.binding.contentId,
+          graphId: active.binding.graph.id,
+          roomId: room.id,
+          floor: room.floor,
+          position: vector(snapshot.position),
+          exteriorReturnPose: {
+            position: vector(active.exteriorPosition),
+            facingYaw: normalizeValleyYaw(active.exteriorFacing),
+          },
+          resolvedDoorAccess: Object.keys(snapshot.doorAccess)
+            .sort()
+            .flatMap((doorId) => {
+              const resolution = snapshot.doorAccess[doorId]
+              return resolution === undefined
+                ? []
+                : [{ doorId, stepIds: [...resolution.stepIds] }]
+            }),
+          activeUse: snapshot.actor.activeUse === null ? null : { ...snapshot.actor.activeUse },
+          sanitationStage: snapshot.actor.sanitationStage,
+          hygieneComplete: snapshot.actor.hygieneComplete,
+          serial: snapshot.actor.serial,
+          tick: snapshot.actor.tick,
+          useCounts: { ...snapshot.actor.useCounts },
+          revision: snapshot.revision,
+        }
+      }
+    }
+    const valley3d: Valley3DSaveV1 = {
+      version: VALLEY3D_SAVE_VERSION,
+      exterior,
+      life: cloneLifeSimulationState(life),
+      interior,
+    }
+    currentState = { ...state, valley3d }
+  }
+
   const paintRuntimeStatus = (): void => {
     runtimeStatus.dataset.state = surfaceStatus.state
     if (surfaceStatus.state === 'booting') {
@@ -650,12 +830,15 @@ export function createFarmTab(): FarmTab {
       window.clearTimeout(saveTimer)
       saveTimer = 0
     }
+    captureValleyState(game.runtime)
     const snapshot = currentState
     if (snapshot !== null) void saveGame(snapshot)
   }
 
   const requestAutosave = (): void => {
-    if (!gameOptions().autosave || currentState === null || disposed) return
+    if (currentState === null || disposed) return
+    captureValleyState(game.runtime)
+    if (!gameOptions().autosave) return
     if (saveTimer !== 0) window.clearTimeout(saveTimer)
     saveTimer = window.setTimeout(() => {
       saveTimer = 0
@@ -665,9 +848,23 @@ export function createFarmTab(): FarmTab {
 
   const syncLife = (previous: GameState | null, next: GameState): void => {
     const targetMinute = gameMinuteIndex(next)
-    if (lifeState === null || previous === null || previous.seed !== next.seed || targetMinute < lifeMinute) {
-      lifeState = createLifeSimulation(next.seed)
-      lifeMinute = 6 * 60
+    const suppliedLife = next.valley3d?.life
+    const suppliedChanged = suppliedLife !== undefined && suppliedLife !== previous?.valley3d?.life
+    if (
+      lifeState === null ||
+      previous === null ||
+      previous.seed !== next.seed ||
+      targetMinute < lifeMinute ||
+      suppliedChanged
+    ) {
+      const restored = readLifeSimulationState(suppliedLife, next.seed)
+      if (restored !== null && lifeMinuteIndex(restored) <= targetMinute) {
+        lifeState = restored
+        lifeMinute = lifeMinuteIndex(restored)
+      } else {
+        lifeState = createLifeSimulation(next.seed)
+        lifeMinute = lifeMinuteIndex(lifeState)
+      }
     }
     if (targetMinute > lifeMinute) {
       lifeState = advanceLifeSimulation(lifeState, targetMinute - lifeMinute, { nearbyNpcIds })
@@ -711,6 +908,7 @@ export function createFarmTab(): FarmTab {
     if (result.teleportPosition !== null) {
       runtime.setPlayerPose(shiftedPoint(result.teleportPosition), runtime.playerYaw)
     }
+    requestAutosave()
   }
 
   const leaveInterior = (runtime: ThreeRuntime): void => {
@@ -728,6 +926,7 @@ export function createFarmTab(): FarmTab {
     runtime.setPlayerPose(active.exteriorPosition, active.exteriorFacing)
     currentInteriorTarget = null
     announceFeedback(message)
+    requestAutosave()
   }
 
   const enterInterior = (runtime: ThreeRuntime, binding: StructureBinding): void => {
@@ -765,6 +964,77 @@ export function createFarmTab(): FarmTab {
     runtime.setPlayerPose(shiftedPoint(result.teleportPosition), exteriorFacing)
     currentStructureTarget = null
     announceFeedback(`Entered ${binding.label}. ${result.feedback}`)
+    requestAutosave()
+  }
+
+  const restoreValleyRuntime = (
+    runtime: ThreeRuntime,
+    state: GameState,
+  ): { readonly state: GameState; readonly fellBack: boolean; readonly restoredInterior: boolean } => {
+    const saved = state.valley3d
+    const savedExterior = saved?.exterior
+    const exterior = savedExterior !== undefined && exteriorReferencesCurrentRegistry(savedExterior)
+      ? savedExterior
+      : legacyExterior(state)
+    let fellBack = saved === undefined || savedExterior === undefined || exterior !== savedExterior
+    const life = cloneLifeSimulationState(lifeState ?? createLifeSimulation(state.seed))
+    const sanitizedBase: Valley3DSaveV1 = {
+      version: VALLEY3D_SAVE_VERSION,
+      exterior,
+      life,
+      interior: null,
+    }
+
+    const savedInterior = saved?.interior ?? null
+    if (savedInterior !== null && posesMatch(savedInterior.exteriorReturnPose, exterior)) {
+      const binding = STRUCTURE_BINDING_BY_CONTENT_ID.get(savedInterior.structureContentId)
+      const snapshot = binding === undefined
+        ? null
+        : restoredInteriorSnapshot(binding, savedInterior)
+      if (binding !== undefined && snapshot !== null) {
+        let interior: ThreeInteriorRuntimeAdapter | null = null
+        try {
+          interior = createThreeInteriorRuntime({
+            graph: binding.graph,
+            actorId: 'player',
+            actorKind: 'player',
+            snapshot,
+            visibilityMode: 'room',
+          })
+          interior.presentation.root.position.y = INTERIOR_WORLD_Y
+          interior.mount({
+            scene: runtime.scene,
+            addCollider: (collider) => runtime.collision.addStaticCollider(shiftedCollider(collider)),
+            removeCollider: (id) => runtime.collision.removeStaticCollider(id),
+          })
+          activeInterior = {
+            binding,
+            runtime: interior,
+            exteriorPosition: vector(exterior.position),
+            exteriorFacing: exterior.facingYaw,
+          }
+          runtime.setWorldVisible(false)
+          runtime.setPlayerPose(shiftedPoint(savedInterior.position), exterior.facingYaw)
+          const restoredState = { ...state, valley3d: { ...sanitizedBase, interior: savedInterior } }
+          currentState = restoredState
+          return { state: restoredState, fellBack, restoredInterior: true }
+        } catch {
+          interior?.dispose()
+          activeInterior = null
+          fellBack = true
+        }
+      } else {
+        fellBack = true
+      }
+    } else if (savedInterior !== null) {
+      fellBack = true
+    }
+
+    runtime.setWorldVisible(true)
+    runtime.setPlayerPose(exterior.position, exterior.facingYaw)
+    const restoredState = { ...state, valley3d: sanitizedBase }
+    currentState = restoredState
+    return { state: restoredState, fellBack, restoredInterior: false }
   }
 
   const useInteriorTarget = (runtime: ThreeRuntime, target: InteriorTarget): void => {
@@ -1153,6 +1423,7 @@ export function createFarmTab(): FarmTab {
     nearbyNpcIds = nextNearby
     if (previousKey !== nextKey) {
       lifeState = advanceLifeSimulation(lifeState, 0, { nearbyNpcIds })
+      requestAutosave()
     }
   }
 
@@ -1229,14 +1500,21 @@ export function createFarmTab(): FarmTab {
     currentState = next
     syncLife(null, next)
     const runtime = game.runtime
+    let fellBack = next.valley3d === undefined
     if (runtime !== null) {
-      runtime.setPlayerPose(
-        { x: next.player.x + 0.5, y: 0, z: next.player.y + 0.5 },
-        yawForFacing(next.player.facing),
-      )
-      syncEnvironment(runtime, next)
+      const restored = restoreValleyRuntime(runtime, next)
+      currentState = restored.state
+      fellBack = fellBack || restored.fellBack
+      syncEnvironment(runtime, restored.state)
     }
-    announceFeedback(saved === null ? 'New valley ready.' : 'Saved valley restored.')
+    requestAutosave()
+    announceFeedback(
+      saved === null
+        ? 'New valley ready.'
+        : fellBack
+          ? 'Saved farm restored; unavailable 3D references returned to the safe exterior pose.'
+          : 'Saved valley and 3D progress restored.',
+    )
     paintHud(runtime)
     applyClock()
   })().catch((error: unknown) => {
@@ -1298,6 +1576,7 @@ export function createFarmTab(): FarmTab {
       game.canvas.focus()
     },
     state(): GameState | null {
+      captureValleyState(game.runtime)
       return currentState
     },
     apply(next: GameState): void {
@@ -1306,18 +1585,11 @@ export function createFarmTab(): FarmTab {
       syncLife(previous, next)
       const runtime = game.runtime
       if (runtime !== null) {
-        syncEnvironment(runtime, next)
-        if (
-          previous === null ||
-          previous.player.x !== next.player.x ||
-          previous.player.y !== next.player.y ||
-          previous.player.facing !== next.player.facing
-        ) {
-          runtime.setPlayerPose(
-            { x: next.player.x + 0.5, y: 0, z: next.player.y + 0.5 },
-            yawForFacing(next.player.facing),
-          )
-        }
+        activeInterior?.runtime.dispose()
+        activeInterior = null
+        const restored = restoreValleyRuntime(runtime, next)
+        currentState = restored.state
+        syncEnvironment(runtime, restored.state)
       }
       requestAutosave()
       paintHud(runtime)

@@ -40,6 +40,9 @@ export type AuthoredValleyRegionId =
   | 'region:arid'
   | 'region:alpine'
 
+/** World units per streamed authored cell; shared by runtime streaming and save location IDs. */
+export const AUTHORED_VALLEY_CELL_SIZE = 16
+
 export interface AuthoredValleyCellPoint {
   readonly x: number
   readonly z: number
@@ -69,6 +72,11 @@ export interface AuthoredValleyBounds {
   readonly maxCellX: number
   readonly minCellZ: number
   readonly maxCellZ: number
+}
+
+export interface AuthoredValleyLocation {
+  readonly regionId: AuthoredValleyRegionId
+  readonly estateId: AuthoredEstateZone['id'] | null
 }
 
 export interface AuthoredValleyWorldCellBuilderOptions {
@@ -381,6 +389,32 @@ function withinValley(point: AuthoredValleyCellPoint): boolean {
     point.z >= AUTHORED_VALLEY_BOUNDS.minCellZ &&
     point.z <= AUTHORED_VALLEY_BOUNDS.maxCellZ
   )
+}
+
+/** Resolves the authored registry location for a world pose without duplicating region rules. */
+export function authoredValleyLocationAt(
+  position: Readonly<{ x: number; z: number }>,
+  cellSize: number,
+): AuthoredValleyLocation | null {
+  if (
+    !Number.isFinite(position.x) ||
+    !Number.isFinite(position.z) ||
+    !Number.isFinite(cellSize) ||
+    cellSize <= 0
+  ) {
+    return null
+  }
+  const cell = Object.freeze({
+    x: Math.floor(position.x / cellSize),
+    z: Math.floor(position.z / cellSize),
+  })
+  if (!withinValley(cell)) return null
+  const region = regionForCell(cell)
+  const estate = estateForCell(cell)
+  return Object.freeze({
+    regionId: region.id,
+    estateId: estate?.id ?? null,
+  })
 }
 
 function normalizedRegion(value: string): string {

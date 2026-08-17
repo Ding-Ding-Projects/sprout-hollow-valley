@@ -39,6 +39,7 @@ import {
   type EnvironmentSystemOptions,
 } from './environment'
 import {
+  AUTHORED_VALLEY_CELL_SIZE,
   buildAuthoredValleyWorldCell,
   ThreeWorldCellSource,
   type LoadedThreeWorldCell,
@@ -54,7 +55,7 @@ const DEFAULT_ENVIRONMENT: EnvironmentSeedState = Object.freeze({
 const DEFAULT_WORLD: Pick<WorldCellStreamerOptions, 'worldSeed' | 'cellSize' | 'loadRadius'> =
   Object.freeze({
     worldSeed: 1,
-    cellSize: 16,
+    cellSize: AUTHORED_VALLEY_CELL_SIZE,
     loadRadius: 1,
   })
 

@@ -1,0 +1,169 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Sprout Hollow Valley core asset authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sprout Marker Scene",
+      "nodes": [0]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Sprout Marker",
+      "mesh": 0,
+      "extras": {
+        "category": "world-prop",
+        "kind": "gltf"
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Low Poly Sprout Marker",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 2,
+            "NORMAL": 3
+          },
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Warm Soil",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.36, 0.20, 0.09, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Sprout Stem",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.14, 0.48, 0.20, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.92
+      }
+    },
+    {
+      "name": "Sprout Leaves",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.31, 0.69, 0.28, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.86
+      }
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1872,
+      "uri": "data:application/octet-stream;base64,rkdhvs3MzD2uR2G+rkdhvs3MzD2uR2E+rkdhPs3MzD2uR2E+rkdhvs3MzD2uR2G+rkdhPs3MzD2uR2E+rkdhPs3MzD2uR2G+KVyPvgAAAAApXI8+KVyPPgAAAAApXI8+rkdhPs3MzD2uR2E+KVyPvgAAAAApXI8+rkdhPs3MzD2uR2E+rkdhvs3MzD2uR2E+KVyPPgAAAAApXI++KVyPvgAAAAApXI++rkdhvs3MzD2uR2G+KVyPPgAAAAApXI++rkdhvs3MzD2uR2G+rkdhPs3MzD2uR2G+KVyPvgAAAAApXI++KVyPvgAAAAApXI8+rkdhvs3MzD2uR2E+KVyPvgAAAAApXI++rkdhvs3MzD2uR2E+rkdhvs3MzD2uR2G+KVyPPgAAAAApXI8+KVyPPgAAAAApXI++rkdhPs3MzD2uR2G+KVyPPgAAAAApXI8+rkdhPs3MzD2uR2G+rkdhPs3MzD2uR2E+AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAgP61Az+ohFs/AAAAgP61Az+ohFs/AAAAgP61Az+ohFs/AAAAAP61Az+ohFs/AAAAAP61Az+ohFs/AAAAAP61Az+ohFs/AAAAAP61Az+ohFu/AAAAAP61Az+ohFu/AAAAAP61Az+ohFu/AAAAAP61Az+ohFu/AAAAAP61Az+ohFu/AAAAAP61Az+ohFu/qIRbv/61Az8AAAAAqIRbv/61Az8AAAAAqIRbv/61Az8AAAAAqIRbv/61Az8AAAAAqIRbv/61Az8AAAAAqIRbv/61Az8AAAAAqIRbP/61Az8AAAAAqIRbP/61Az8AAAAAqIRbP/61Az8AAAAAqIRbP/61Az8AAAAAqIRbP/61Az8AAAAAqIRbP/61Az8AAAAAKVwPvTMzMz8pXA+9KVwPvTMzMz8pXA89KVwPPTMzMz8pXA89KVwPvTMzMz8pXA+9KVwPPTMzMz8pXA89KVwPPTMzMz8pXA+9KVwPvQrXoz0pXA+9KVwPPQrXoz0pXA+9KVwPPQrXoz0pXA89KVwPvQrXoz0pXA+9KVwPPQrXoz0pXA89KVwPvQrXoz0pXA89KVwPvQrXoz0pXA89KVwPPQrXoz0pXA89KVwPPTMzMz8pXA89KVwPvQrXoz0pXA89KVwPPTMzMz8pXA89KVwPvTMzMz8pXA89KVwPPQrXoz0pXA+9KVwPvQrXoz0pXA+9KVwPvTMzMz8pXA+9KVwPPQrXoz0pXA+9KVwPvTMzMz8pXA+9KVwPPTMzMz8pXA+9KVwPvQrXoz0pXA+9KVwPvQrXoz0pXA89KVwPvTMzMz8pXA89KVwPvQrXoz0pXA+9KVwPvTMzMz8pXA89KVwPvTMzMz8pXA+9KVwPPQrXoz0pXA89KVwPPQrXoz0pXA+9KVwPPTMzMz8pXA+9KVwPPQrXoz0pXA89KVwPPTMzMz8pXA+9KVwPPTMzMz8pXA89AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAIAAAAAAAACAPwAAAIAAAAAAAACAPwAAAIAAAAAAAAAAABSuBz8AAAAAzcxMvhSuRz8pXA899ijcvtejMD8AAAAAAAAAABSuBz8AAAAA9ijcvtejMD8AAAAA7FE4vuF6FD8pXA+9AAAAAPYoHD8AAAAAzcxMPlK4Xj8pXA+99ijcPhSuRz8AAAAAAAAAAPYoHD8AAAAA9ijcPhSuRz8AAAAA7FE4Ph+FKz8pXA89xJSUveinR74kZno/xJSUveinR74kZno/xJSUveinR74kZno/TYuivjBrWr9O49M+TYuivjBrWr9O49M+TYuivjBrWr9O49M+RFiZPaHvQb6Nonq/RFiZPaHvQb6Nonq/RFiZPaHvQb6Nonq/eHi0PgE+ZL/3lpG+eHi0PgE+ZL/3lpG+eHi0PgE+ZL/3lpG+"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 360,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 360,
+      "byteLength": 360,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 720,
+      "byteLength": 432,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1152,
+      "byteLength": 432,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1584,
+      "byteLength": 144,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1728,
+      "byteLength": 144,
+      "target": 34962
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 30,
+      "type": "VEC3",
+      "min": [-0.28, 0.0, -0.28],
+      "max": [0.28, 0.1, 0.28]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 30,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3",
+      "min": [-0.035, 0.08, -0.035],
+      "max": [0.035, 0.7, 0.035]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 12,
+      "type": "VEC3",
+      "min": [-0.43, 0.53, -0.035],
+      "max": [0.43, 0.87, 0.035]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 12,
+      "type": "VEC3"
+    }
+  ]
+}

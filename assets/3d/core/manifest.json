@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "core.terrain.sprout-marker",
+      "uri": "assets/3d/core/sprout-marker.gltf",
+      "category": "world-prop",
+      "kind": "gltf",
+      "estimatedBytes": 5685,
+      "metadata": {
+        "format": "gltf-2.0",
+        "bundled": true,
+        "selfContained": true,
+        "loadPolicy": "on-demand",
+        "instanceable": true,
+        "lod": 0,
+        "bounds": {
+          "min": [-0.43, 0.0, -0.28],
+          "max": [0.43, 0.87, 0.28]
+        },
+        "collision": {
+          "shape": "cylinder",
+          "radius": 0.28,
+          "height": 0.87
+        },
+        "tags": ["core", "sprout", "terrain-marker"]
+      }
+    }
+  ]
+}

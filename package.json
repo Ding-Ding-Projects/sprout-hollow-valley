@@ -64,7 +64,7 @@
     },
     "squirrelWindows": {
       "artifactName": "Sprout-Hollow-Valley-Setup-${version}.${ext}",
-      "iconUrl": "https://raw.githubusercontent.com/electron/electron/154ee91a56d69dc8ecd46116d545046067f5db82/shell/browser/resources/win/electron.ico",
+      "iconUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/sprout-hollow-valley/6550c8c33e663f22f1c88f182807178c5b5f09ff/assets/branding/sprout-hollow-valley.ico",
       "msi": false
     },
     "publish": [

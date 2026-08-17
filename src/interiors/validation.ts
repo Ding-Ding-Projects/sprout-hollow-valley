@@ -33,6 +33,8 @@ export const INTERIOR_VALIDATION_ISSUE_CODES = [
   'structure-kind-context-mismatch',
   'structure-identity-mismatch',
   'invalid-room-purpose',
+  'room-floor-invalid',
+  'room-navigation-region-invalid',
   'room-not-accessible',
   'missing-reference',
   'door-missing-endpoint',
@@ -41,6 +43,7 @@ export const INTERIOR_VALIDATION_ISSUE_CODES = [
   'door-exterior-mismatch',
   'door-not-accessible',
   'door-access-invalid',
+  'door-vertical-traversal-invalid',
   'entry-room-invalid',
   'entry-door-invalid',
   'unreachable-room',
@@ -146,6 +149,10 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
 
 function knownValue<T extends string>(value: unknown, values: readonly T[]): value is T {
@@ -988,6 +995,24 @@ export function validateInteriorGraph(graph: unknown): readonly InteriorValidati
         `${room.path}.purpose must be a supported gameplay room purpose.`,
       )
     }
+    if (!nonNegativeInteger(room.value.floor)) {
+      addIssue(
+        issues,
+        'room-floor-invalid',
+        structureId,
+        `${room.path}.floor`,
+        `${room.path}.floor must be a zero-based integer.`,
+      )
+    }
+    if (!nonEmptyString(room.value.navigationRegionId)) {
+      addIssue(
+        issues,
+        'room-navigation-region-invalid',
+        structureId,
+        `${room.path}.navigationRegionId`,
+        `${room.path}.navigationRegionId must be a stable navigation-region identifier.`,
+      )
+    }
     if (room.value.accessible !== true) {
       addIssue(
         issues,
@@ -1083,6 +1108,27 @@ export function validateInteriorGraph(graph: unknown): readonly InteriorValidati
         structureId,
         door.path,
         `${door.path} must define visible and bidirectional boolean behavior.`,
+      )
+    }
+    const fromRoom = roomById.get(fromRoomId)
+    const toRoom = roomById.get(toRoomId)
+    const fromFloor = fromRoom?.value.floor
+    const toFloor = toRoom?.value.floor
+    const expectedVerticalTraversal =
+      nonNegativeInteger(fromFloor) &&
+      nonNegativeInteger(toFloor) &&
+      fromFloor !== toFloor
+        ? ['stairs', 'elevator']
+        : []
+    if (!exactUniqueSet(door.value.verticalTraversal, expectedVerticalTraversal)) {
+      addIssue(
+        issues,
+        'door-vertical-traversal-invalid',
+        structureId,
+        `${door.path}.verticalTraversal`,
+        expectedVerticalTraversal.length === 0
+          ? `${door.path} must not declare vertical traversal for a same-floor or exterior link.`
+          : `${door.path} must declare one stairs and one accessible elevator route across floors.`,
       )
     }
     validateDoorAccess(door.value.access, `${door.path}.access`, structureId, issues, idValues)

@@ -20,6 +20,7 @@ import {
   type StationKind,
   type StructureContext,
   type StructureKind,
+  type VerticalTraversalKind,
 } from './models'
 
 export const FACTORY_INTERIOR_COUNT = 400 as const
@@ -125,10 +126,27 @@ function roomId(structureId: string, role: RoomPurpose): string {
   return `${structureId}:room:${role}`
 }
 
+function roomFloor(kind: StructureKind, role: RoomPurpose): number {
+  if (kind === 'factory') return role === 'staff' || role === 'restroom' ? 1 : 0
+  return role === 'support' || role === 'restroom' ? 1 : 0
+}
+
+function verticalTraversal(
+  kind: StructureKind,
+  fromRole: RoomPurpose | null,
+  toRole: RoomPurpose,
+): readonly VerticalTraversalKind[] {
+  if (fromRole === null || roomFloor(kind, fromRole) === roomFloor(kind, toRole)) return []
+  return ['stairs', 'elevator']
+}
+
 function makeDoor(
   structureId: string,
+  kind: StructureKind,
   suffix: string,
   label: string,
+  fromRole: RoomPurpose | null,
+  toRole: RoomPurpose,
   fromRoomId: string,
   toRoomId: string,
   exterior: boolean,
@@ -146,6 +164,7 @@ function makeDoor(
     exterior,
     bidirectional: true,
     accessible: true,
+    verticalTraversal: verticalTraversal(kind, fromRole, toRole),
     access: locked ? eventualAccess(id, context) : openAccess(),
     interaction: makeInteraction(
       `${id}:interaction`,
@@ -166,22 +185,22 @@ function makeDoors(structureId: string, kind: StructureKind, context: StructureC
     const support = roomId(structureId, 'support')
     const staff = roomId(structureId, 'staff')
     return [
-      makeDoor(structureId, 'entrance', 'main entrance', EXTERIOR_ROOM_ID, entry, true, false, context),
-      makeDoor(structureId, 'entry-operations', 'operations door', entry, operations, false, false, context),
-      makeDoor(structureId, 'operations-logistics', 'logistics door', operations, logistics, false, false, context),
-      makeDoor(structureId, 'entry-support', 'support door', entry, support, false, false, context),
-      makeDoor(structureId, 'support-staff', 'staff door', support, staff, false, true, context),
-      makeDoor(structureId, 'staff-restroom', 'restroom door', staff, restroom, false, false, context),
+      makeDoor(structureId, kind, 'entrance', 'main entrance', null, 'entry', EXTERIOR_ROOM_ID, entry, true, false, context),
+      makeDoor(structureId, kind, 'entry-operations', 'operations door', 'entry', 'operations', entry, operations, false, false, context),
+      makeDoor(structureId, kind, 'operations-logistics', 'logistics door', 'operations', 'logistics', operations, logistics, false, false, context),
+      makeDoor(structureId, kind, 'entry-support', 'support door', 'entry', 'support', entry, support, false, false, context),
+      makeDoor(structureId, kind, 'support-staff', 'staff door', 'support', 'staff', support, staff, false, true, context),
+      makeDoor(structureId, kind, 'staff-restroom', 'restroom door', 'staff', 'restroom', staff, restroom, false, false, context),
     ]
   }
 
   const primary = roomId(structureId, 'primary')
   const support = roomId(structureId, 'support')
   return [
-    makeDoor(structureId, 'entrance', 'main entrance', EXTERIOR_ROOM_ID, entry, true, false, context),
-    makeDoor(structureId, 'entry-primary', 'main room door', entry, primary, false, false, context),
-    makeDoor(structureId, 'primary-support', 'support room door', primary, support, false, true, context),
-    makeDoor(structureId, 'support-restroom', 'restroom door', support, restroom, false, false, context),
+    makeDoor(structureId, kind, 'entrance', 'main entrance', null, 'entry', EXTERIOR_ROOM_ID, entry, true, false, context),
+    makeDoor(structureId, kind, 'entry-primary', 'main room door', 'entry', 'primary', entry, primary, false, false, context),
+    makeDoor(structureId, kind, 'primary-support', 'support room door', 'primary', 'support', primary, support, false, true, context),
+    makeDoor(structureId, kind, 'support-restroom', 'restroom door', 'support', 'restroom', support, restroom, false, false, context),
   ]
 }
 
@@ -343,6 +362,8 @@ function makeRooms(
       name: spec.name,
       purpose: spec.role,
       gameplayPurpose: spec.gameplayPurpose,
+      floor: roomFloor(kind, spec.role),
+      navigationRegionId: `${structureId}:navigation:floor-${roomFloor(kind, spec.role)}:${spec.role}`,
       accessible: true,
       doorIds: doors
         .filter((door) => door.fromRoomId === id || door.toRoomId === id)

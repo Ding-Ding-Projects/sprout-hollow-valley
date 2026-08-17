@@ -42,6 +42,14 @@ does not claim that the planned 3D world or complete content catalogue is implem
   codes, and require nonempty versioned Squirrel.Windows artifacts before reporting success.
 - A Windows batch entrypoint that installs locked dependencies, launches the desktop application
   in the foreground, and returns the application's eventual command exit code.
+- A deterministic Three.js interior presentation for all 700 typed structure graphs, with
+  multi-room and multi-floor primitive geometry, stable collision bounds, visible two-sided doors
+  carrying real destinations and access feedback, and catalogued stair and accessible-elevator
+  transitions.
+- Visible context stations and distinct sanitation fixtures, plus a live-runtime adapter with
+  enter, exit, door, connector, station, fixture, explicit-tick, immutable-snapshot, and
+  operational restroom-and-hand-washing APIs. The adapter mounts directly to a Three.js scene and
+  collision owner without coupling interior rules to the Farm tab or frame rate.
 
 ### Fixed
 

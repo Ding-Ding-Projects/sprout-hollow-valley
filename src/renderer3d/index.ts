@@ -1,4 +1,5 @@
 export * from './assets'
 export * from './environment'
+export * from './interiors'
 export * from './runtime'
 export * from './world'

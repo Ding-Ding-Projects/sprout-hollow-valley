@@ -100,6 +100,60 @@ All transitions return new plain data. Definitions are never mutated, and
 runtime operations do not consult the wall clock, renderer, DOM, audio engine,
 or unseeded randomness.
 
+## Three.js presentation and live-runtime adapter
+
+`buildThreeInteriorPresentation` turns any of the 700 typed `InteriorGraph`
+definitions into bundled procedural Three.js geometry. It makes no network
+requests and requires no downloaded models or textures. Room, door, station,
+fixture, stair, and elevator object identities derive only from stable catalog
+identifiers, so rebuilding the same graph produces the same layout and
+interaction metadata.
+
+Every catalog room declares a zero-based floor and a stable navigation-region
+identifier. The presentation lays out walkable room shells by floor, emits
+static wall and floor collision bounds, and provides a stable spawn point for
+each room. A consumer may render every room, the active floor, or only the
+active room without changing simulation state.
+
+Every door receives a visible endpoint on each occupiable side. Endpoint
+metadata includes the exact structure, door, current room, destination room,
+destination floor, interaction label, accessibility label, access reason, and
+eventual-access steps. Door materials expose available, locked, resolved, and
+denied feedback states. A door connecting different catalog floors also emits
+the catalogued stair and accessible elevator interaction objects; either uses
+the same authoritative door transition and destination.
+
+Stations and fixtures are visible primitive assemblies rather than labels.
+Each object carries its exact station or fixture identifier, room, context,
+interaction labels, operational state, and contract in local Three.js
+`userData`. The sanitation fixtures have distinct toilet, accessible toilet,
+sink, water, soap, drying, waste, mirror, and privacy-door forms.
+
+`ThreeInteriorRuntimeAdapter` keeps the renderer coupled to the existing pure
+interior rules without moving those rules into the frame loop. Its public
+operations are explicit and deterministic:
+
+- `mount` and `unmount` attach the presentation and its stable colliders to a
+  Three.js scene and collision owner;
+- `enter`, `exit`, `traverseDoor`, and `traverseConnector` return the exact
+  arrival or exterior-return position that the live world should apply;
+- `doorFeedback` exposes the stated lock reason and ordered deterministic
+  eventual-access steps, while `resolveDoorAccess` accepts only the exact
+  completed step identifiers and never silently bypasses them;
+- `startStation`, `useStation`, `startFixture`, `useFixture`,
+  `advanceActiveUse`, and `completeActiveUse` operate the catalogued
+  interaction contracts with explicit integer ticks; and
+- `sanitationPlan` plus `useNextSanitationStep` provide a deterministic route
+  to the restroom and advance exactly one entry, door, toilet, rinsing, soap,
+  or drying action at a time.
+
+Each operation returns an immutable `ThreeInteriorRuntimeSnapshot`, access or
+failure feedback, an optional interaction position, and an optional teleport
+position. The caller owns the animation loop and applies those positions to
+the player or NPC controller. A mounted adapter can be composed with the main
+3D runtime by forwarding its scene plus collision add/remove functions; the
+adapter does not depend on the desktop shell or Farm tab.
+
 ## Fail-closed invariants
 
 Validation applies to the entire registry and then to every structure in stable
@@ -114,6 +168,7 @@ identifier order. The registry is invalid when any row below is not satisfied.
 | Traversal | Every required room, door endpoint, station, fixture, and exit is reachable from the public entry, immediately or after satisfying a declared eventual-access rule. |
 | Exterior doors | Every visible exterior door has a declared transition point and a real destination room; every required exit returns to a declared exterior destination. |
 | Internal doors | Every visible internal door links declared room endpoints. No endpoint is a label, placeholder, or missing room. |
+| Floors and connectors | Every room has a zero-based floor and stable navigation region; a cross-floor door declares both stairs and an accessible elevator, while same-floor and exterior links declare neither. |
 | Eventual access | Every unavailable door states a reason and at least one deterministic, satisfiable eventual-access condition. Permanent unreachable locks are rejected. |
 | Station references | Every station belongs to a declared reachable room, has a supported interaction, and satisfies the required station set for its structure context. |
 | Fixture references | Every fixture belongs to a declared reachable room and has a supported operational interaction. |

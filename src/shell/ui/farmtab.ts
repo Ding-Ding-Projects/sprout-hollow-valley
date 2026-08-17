@@ -1,36 +1,36 @@
 /**
- * The Farm tab: the shell's host for the canvas game.
+ * The Farm tab: the shell's host for the third-person Three.js world.
  *
  * It owns three things and nothing else.
  *
- *  1. **The stage.** A container the renderer mounts its canvas into, carrying
+ *  1. **The stage.** A container the renderer mounts its WebGL canvas into, carrying
  *     `data-sh-farm` so `settings.ts` lets the farm keys through to it and stops them
- *     everywhere else. The canvas is the game surface of DESIGN.md sections 1–9,
- *     untouched: 320x224, upscaled by whole numbers, letterboxed in ink.
+ *     everywhere else. The canvas is a responsive, third-person 3D surface backed by
+ *     the bundled fallback valley and the shared engine3d input/camera/collision layers.
  *  2. **The clock.** `setVisible()` pauses the frame loop when the Farm tab is not the
  *     visible one and starts it again when it is, so a background tab costs nothing.
  *     The Game setting `pauseWhenHidden` can turn that off; the setting is read live.
- *  3. **The voice.** Every line the game speaks is routed back to the string key it
+ *  3. **The voice.** Every inherited line the rules layer speaks can still be routed
  *     came from and re-rendered through `t()`, so the farm speaks the selected
  *     language at the selected funny level, and every action is recorded to history as
  *     that key plus its facts — never as a frozen sentence.
  *
- * One honest limit, stated rather than hidden. The game draws its toasts with the 5x7
+ * The inherited message router remains below for deterministic farming adapters. The old game
+ * drew its toasts with the 5x7
  * bitmap face in `src/engine/font.ts`, which carries ASCII and nothing else. A
  * Cantonese line has no glyphs there and would render as a row of hollow boxes, so a
  * translation the face cannot draw leaves the canvas showing the game's own line — the
  * same facts, the same numbers — while the caption strip below the farm carries the
  * full translation in the selected language. Nothing is dropped and nothing is faked.
  *
- * Colour comes from `tokens.css` through `base.css`; the only inline styles here are
- * layout ones with no design opinion.
+ * The live 3D surface also exposes readable boot and failure states. Colour comes from
+ * `tokens.css` through `base.css`; the only inline styles here are layout ones.
  */
 
 import { CROPS } from '../../game/crops'
 import type { GameState, Quality, Season } from '../../game/types'
-import { mount } from '../../renderer/main'
-import type { GameHandle, GameMessageChannel, PresentedMessage } from '../../renderer/main'
-import type { ToastTone } from '../../renderer/scene'
+import { mountThreeFarmSurface } from '../../renderer3d/farm-surface'
+import type { ThreeFarmSurfaceStatus } from '../../renderer3d/farm-surface'
 import { cropNameKey, onLangChange, qualityKey, seasonKey, t } from '../core/i18n'
 import type { StringKey } from '../core/i18n'
 import { record } from '../core/history'
@@ -45,12 +45,6 @@ export const FARM_ELEMENT_ID = 'shell.farm'
 
 /** The keys the game quotes when it asks for a seed. A fact, never prose. */
 const SEED_CYCLE_KEYS = 'Q / E'
-
-/**
- * The characters `src/engine/font.ts` can actually draw: space through underscore,
- * with the `i` flag folding lowercase onto the capitals the face is built from.
- */
-const DRAWABLE_BY_FACE = /^[ -_]*$/i
 
 type Params = Record<string, string | number>
 
@@ -324,16 +318,16 @@ export function routeGameMessage(raw: string): Routed | null {
 export interface FarmTab {
   /** The panel content. Hand it to the tab strip. */
   readonly element: HTMLElement
-  /** The game's canvas, for a caller that wants to put focus on the farm. */
+  /** The WebGL canvas, for a caller that wants to put focus on the farm. */
   readonly canvas: HTMLElement
   /** Tell the farm whether it is the visible tab. Pauses and resumes the loop. */
   setVisible(visible: boolean): void
   isRunning(): boolean
   /** Moves keyboard focus onto the farm. */
   focus(): void
-  /** Writes the game save now. The game keeps its own save; the shell store is separate. */
+  /** Reserved for the deterministic gameplay adapter; the 3D runtime owns no save yet. */
   saveNow(): void
-  /** The live game state, or null before the farm has booted. Read-only by contract. */
+  /** The adapted farming state, or null while only the fallback 3D world is mounted. */
   state(): GameState | null
   /** Hands a state a shell surface produced back to the running game. */
   apply(state: GameState): void
@@ -363,62 +357,56 @@ export function createFarmTab(): FarmTab {
   stage.style.minHeight = '0'
   stage.style.overflow = 'hidden'
 
-  const caption = document.createElement('p')
-  caption.className = 'sh-statusbar sh-farm__caption'
-  caption.style.margin = '0'
-  caption.style.flex = '0 0 auto'
-  // Not a live region: `src/renderer/announce.ts` already speaks every one of these
-  // lines through `#live`, and two live regions would say everything twice.
-  caption.hidden = true
+  const runtimeStatus = document.createElement('div')
+  runtimeStatus.id = 'farm-runtime-status'
+  runtimeStatus.className = 'sh-farm__runtime-status'
+  runtimeStatus.setAttribute('aria-live', 'polite')
+  runtimeStatus.setAttribute('aria-atomic', 'true')
 
-  element.append(stage, caption)
+  element.append(stage)
 
   /* -- the game -- */
 
-  const gameOptions = (): { pauseWhenHidden: boolean; autosave: boolean; pixelScale: 'auto' | number } => {
-    const game = get().settings.game
-    return { pauseWhenHidden: game.pauseWhenHidden, autosave: game.autosave, pixelScale: game.pixelScale }
+  const gameOptions = (): { pauseWhenHidden: boolean } => {
+    return { pauseWhenHidden: get().settings.game.pauseWhenHidden }
   }
 
-  let lastRouted: Routed | null = null
+  let surfaceStatus: ThreeFarmSurfaceStatus = Object.freeze({ state: 'booting' })
 
-  const paintCaption = (): void => {
-    if (lastRouted === null) {
-      caption.hidden = true
-      caption.textContent = ''
+  const paintRuntimeStatus = (): void => {
+    runtimeStatus.dataset.state = surfaceStatus.state
+    if (surfaceStatus.state === 'booting') {
+      runtimeStatus.hidden = false
+      runtimeStatus.setAttribute('role', 'status')
+      runtimeStatus.textContent = t('common.loading')
       return
     }
-    caption.textContent = t(lastRouted.key, lastRouted.params)
-    caption.hidden = false
-  }
-
-  const present = (raw: string, channel: GameMessageChannel, _tone: ToastTone): PresentedMessage => {
-    const routed = routeGameMessage(raw)
-    if (routed === null) return { canvas: raw, text: raw }
-
-    const text = t(routed.key, routed.params)
-    lastRouted = routed
-    paintCaption()
-
-    // `say()` toasts and then announces the same line; recording on one channel only
-    // keeps the history one entry per event.
-    if (channel === 'announce') {
-      record('game', routed.key, undefined, routed.params)
+    if (surfaceStatus.state === 'failed') {
+      runtimeStatus.hidden = false
+      runtimeStatus.setAttribute('role', 'alert')
+      runtimeStatus.textContent = t('common.error', {
+        error: surfaceStatus.error ?? 'The 3D valley could not start.',
+      })
+      return
     }
-
-    // The 5x7 face has no glyphs outside ASCII, so a translation it cannot draw leaves
-    // the canvas showing the game's own line. The caption above carries the rest.
-    return { canvas: DRAWABLE_BY_FACE.test(text) ? text : raw, text }
+    runtimeStatus.hidden = true
+    runtimeStatus.removeAttribute('role')
+    runtimeStatus.textContent = ''
   }
 
-  const game: GameHandle = mount(stage, {
-    present,
-    pixelScale: () => gameOptions().pixelScale,
-    autosave: () => gameOptions().autosave,
+  const game = mountThreeFarmSurface(stage, {
+    startPaused: true,
+    onStateChange: (next) => {
+      surfaceStatus = next
+      paintRuntimeStatus()
+    },
     onError: (message) => {
       record('error', 'common.error', undefined, { error: message })
     },
   })
+  stage.appendChild(runtimeStatus)
+  game.canvas.setAttribute('aria-describedby', runtimeStatus.id)
+  paintRuntimeStatus()
 
   /* -- visibility -- */
 
@@ -440,7 +428,7 @@ export function createFarmTab(): FarmTab {
   const relabel = (): void => {
     element.setAttribute('aria-label', t('tab.farm'))
     game.canvas.setAttribute('aria-label', t('tab.farm'))
-    paintCaption()
+    paintRuntimeStatus()
   }
 
   element.setAttribute('role', 'group')
@@ -451,7 +439,7 @@ export function createFarmTab(): FarmTab {
     attachEditor(element, FARM_ELEMENT_ID, {
       labelKey: 'tab.farm',
       properties: ['background', 'paddingPx'],
-      keywords: ['farm', 'game', 'canvas'],
+      keywords: ['farm', 'game', 'canvas', '3d', 'third person'],
     })
   } catch {
     // An appearance editor that will not attach costs an affordance, not the farm.
@@ -471,13 +459,13 @@ export function createFarmTab(): FarmTab {
       game.canvas.focus()
     },
     state(): GameState | null {
-      return game.state()
+      return null
     },
-    apply(next: GameState): void {
-      game.apply(next)
+    apply(_next: GameState): void {
+      // The gameplay-adapter lane will connect deterministic farming state to this surface.
     },
     saveNow(): void {
-      game.saveNow()
+      // ThreeRuntime owns presentation state only; the shell store remains independent.
     },
     destroy(): void {
       stopStore()

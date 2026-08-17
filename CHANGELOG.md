@@ -12,8 +12,9 @@ build time, so what you see in the app is what is in the repository.
 
 Sprout Hollow Valley begins as an independent Windows-only third-person low-poly 3D farming
 and life-simulation product derived from Sprout Hollow under the MIT license. This update
-establishes the shell, website, product identity, and public documentation foundation; it
-does not claim that the planned 3D world or complete content catalogue is implemented.
+establishes the shell, website, product identity, public documentation, and a playable 3D
+runtime foundation; it does not claim that the fully authored world or complete content
+catalogue is implemented.
 
 ### Added
 
@@ -34,6 +35,10 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - Third-person low-poly 3D direction for camera behavior, deterministic terrain-cell streaming,
   separately streamed room graphs, real door destinations, functional interiors, and accessible
   interaction targeting.
+- A live Three.js Farm tab with a visible low-poly player, camera-relative walking and sprinting,
+  jumping, streamed fallback terrain, static collision, orbit/zoom/recenter/shoulder controls,
+  keyboard/mouse/gamepad input through one logical controller, responsive WebGL sizing, readable
+  boot/failure states, and shell-owned pause, resume, focus, and disposal.
 - An original Sprout Hollow Valley application mark with a committed alpha master and a
   deterministic ten-frame Windows icon generator, wired into executable and Squirrel.Windows
   metadata while preserving unsigned packaging.

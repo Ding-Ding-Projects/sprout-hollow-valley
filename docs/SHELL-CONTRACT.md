@@ -192,11 +192,18 @@ ships no photographs and makes no network request** — the shared contract's pu
 rule is about not inventing or copying photos, and the offline rule here forbids fetching
 them, so the honest implementation is drawn, not sourced. Record this in `COMPLIANCE.md`.
 
-## src/shell/app.ts + src/renderer/main.ts — lane: integration
+## src/shell/app.ts + src/shell/ui/farmtab.ts + src/renderer3d — lane: integration
 
-`app.ts` mounts the title bar, the tab strip and the panels, opens the default tabs, and
-hosts the existing canvas game inside the Farm tab — the game keeps its own loop and its own
-save. It routes game action messages through `t()`, records them to history, and pauses the
-loop when the Farm tab is not visible. `src/renderer/main.ts` is adjusted to mount into a
-supplied container instead of owning `document.body`, and to expose `pause()`/`resume()`.
-This is the only pre-existing renderer file this wave may change.
+`app.ts` mounts the title bar, tab strip and panels, opens the default tabs, and keeps the Farm
+tab pinned. `farmtab.ts` now hosts `renderer3d/farm-surface.ts`, which owns the responsive WebGL
+canvas and drives `ThreeRuntime` with an explicit request-animation-frame clock. The runtime
+provides the visible low-poly player, camera-relative movement, collision, jumping, streamed
+fallback cells, lighting, orbit, zoom, recenter, shoulder switching, and one logical input path
+for keyboard/mouse and gamepad. The host pauses and clears input when the tab is hidden, resumes
+and resizes it when shown, reports boot and WebGL failures as readable shell text, and disposes
+all listeners, streamed cells, renderer resources, and player resources with the panel.
+
+The deterministic farming-state adapter and its save contract remain separate work. Until that
+adapter is connected, `FarmTab.state()` returns `null`, `apply()` is inert, and `saveNow()` has
+no runtime state to write; the rest of the shell stays available without crossing the hardened
+Electron boundary.

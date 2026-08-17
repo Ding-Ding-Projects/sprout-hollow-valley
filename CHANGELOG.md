@@ -37,6 +37,9 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - An original Sprout Hollow Valley application mark with a committed alpha master and a
   deterministic ten-frame Windows icon generator, wired into executable and Squirrel.Windows
   metadata while preserving unsigned packaging.
+- Windows batch entrypoints for reproducible application and installer builds. They validate
+  Node.js, npm, and the lockfile, install locked dependencies, preserve failing command exit
+  codes, and require nonempty versioned Squirrel.Windows artifacts before reporting success.
 
 ### Delivery note
 

@@ -114,11 +114,30 @@ warnings, consent, and recovery instructions keep the same meaning at every leve
 
 ## Building locally
 
-Use Node.js 22 or newer, then install the locked dependencies:
+Use Node.js 22 or newer. From Command Prompt or PowerShell, run the application build with:
 
 ```powershell
-npm install
+.\build.bat
 ```
+
+`build.bat` checks for Node.js, npm, and `package-lock.json`, installs the locked dependencies
+with `npm ci --no-audit`, runs `npm run build`, and reports the `dist/` and `dist-electron/`
+output paths. It returns a nonzero exit code if a prerequisite, dependency install, or build
+step fails.
+
+To build the unsigned Squirrel.Windows installer and update files, run:
+
+```powershell
+.\build-installer.bat
+```
+
+`build-installer.bat` performs the same prerequisite and locked-dependency checks, runs
+`npm run package`, reads the current version from `package.json`, and succeeds only when the
+versioned installer, full NuGet package, and `RELEASES` manifest exist and are nonempty under
+`release/squirrel-windows/`.
+
+The batch entrypoints always reinstall from `package-lock.json`. To run an individual npm script
+manually, install the locked dependencies first with `npm ci --no-audit`.
 
 The following scripts are defined by the repository. This list documents supported commands;
 it does not claim that a command has passed in the current foundation update.

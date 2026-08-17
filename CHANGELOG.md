@@ -34,6 +34,12 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - Third-person low-poly 3D direction for camera behavior, deterministic terrain-cell streaming,
   separately streamed room graphs, real door destinations, functional interiors, and accessible
   interaction targeting.
+- A deterministic 3D gameplay adapter that maps stable world-space targets to the existing farming,
+  livestock, placement, storage, and production actions, with per-target prompts, placement
+  highlights, storage capacity readouts, and complete accessible outcome text.
+- First-class crop, orchard-tree, animal, building, machine, and interior-station target contracts.
+  Tree mutations fail closed until a canonical tree transaction is bound, preventing the renderer
+  from inventing separate time, energy, yield, quality, inventory, or save rules.
 - An original Sprout Hollow Valley application mark with a committed alpha master and a
   deterministic ten-frame Windows icon generator, wired into executable and Squirrel.Windows
   metadata while preserving unsigned packaging.

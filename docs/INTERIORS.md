@@ -61,9 +61,12 @@ and usually a reference to the thing it stands for — an animal, a machine, a s
 | `plot` | greenhouse | Reads the bed's out-of-season growing |
 | `exit` | the mat | Leaves |
 
-Stations are **derived, never stored**. `interiorFor(state, buildingId)` reads the live state
-every time it is called, so a bird bought a second ago is standing in its pen and a machine
-pulled down is not on the bench. Nothing about an interior is written to the save file.
+Stations in this inherited tile-interior layer are **derived, never stored**.
+`interiorFor(state, buildingId)` reads the live state every time it is called, so a bird bought a
+second ago is standing in its pen and a machine pulled down is not on the bench. The station
+definitions and tile-room presentation are not copied into the save file. The separately streamed
+3D interior composition persists only its active logical location and interaction progress, as
+described in section 7.
 
 ## 4. Pens
 
@@ -94,3 +97,21 @@ were. This layer only decides *which* verb the player meant.
 that directory: no canvas, no DOM, no `Date`, no `Math.random`. It returns plain data. Opening
 a panel is expressed as a *request* — `{ open: 'recipes', ref: machineId }` — which the scene
 layer honours. The pure layer never knows a scene exists.
+
+## 7. Persistent 3D interior progress
+
+The optional `GameState.valley3d` version 1 section records the live 3D composition without
+serializing an authored interior graph or any Three.js object. When the player is inside, the
+snapshot identifies the structure content definition and graph, current room and floor, local
+position, and exact exterior return position and yaw. It also records resolved access-step IDs,
+the active station or fixture use, sanitation stage and hygiene completion, and the logical
+runtime serial, tick, use counts, and revision. When the player is outside, `interior` is `null`.
+
+The Farm tab refreshes this logical snapshot on a canonical mutation and at every autosave,
+explicit save, pause save, and disposal save. Restore first rebuilds the current graph from the
+authored registries, then resolves the saved structure, graph, room, door, station, and fixture
+IDs. Missing IDs fail closed: the runtime does not substitute a similarly named room or apply
+door, work-station, fixture, or sanitation progress to a different object. It instead leaves the
+interior inactive and returns to the deterministic exterior state. Missing, malformed, or
+unsupported `valley3d` sections use the same deterministic migration defaults, preserving
+backward compatibility with saves that predate 3D interior persistence.

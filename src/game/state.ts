@@ -11,6 +11,7 @@ import { createMarket } from './economy'
 import { cloneItem, itemKey } from './items'
 import { rngFor } from './rng'
 import { createProgression, fitCount } from './storage'
+import { cloneValley3DSave, createDefaultValley3DSave } from './valley3d-save'
 import type {
   Animal,
   Building,
@@ -259,6 +260,7 @@ export function cloneState(state: GameState): GameState {
     orders: state.orders.map(cloneOrder),
     loans: state.loans.map(cloneLoan),
     stall: state.stall.map(cloneSlot),
+    valley3d: state.valley3d === undefined ? undefined : cloneValley3DSave(state.valley3d),
   }
 }
 
@@ -439,7 +441,7 @@ export function createState(seed: number): GameState {
   })
   inventory.push({ item: { kind: 'good', goodId: 'fertilizer' }, count: 1 })
 
-  return {
+  const state: GameState = {
     version: SAVE_VERSION,
     seed,
     year: 1,
@@ -479,4 +481,6 @@ export function createState(seed: number): GameState {
     loans: [],
     stall: [],
   }
+  state.valley3d = createDefaultValley3DSave(state)
+  return state
 }

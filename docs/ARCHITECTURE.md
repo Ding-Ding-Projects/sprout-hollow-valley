@@ -148,6 +148,32 @@ export function serialize(state: GameState): string
 export function deserialize(json: string): GameState | null
 ```
 
+### Optional `GameState.valley3d` version 1 extension
+
+The canonical save has an optional `valley3d` section so a version-one farm save written before
+the third-person composition remains readable. Its outer `version` is independent of the core save
+version and is currently `1`. `serialize()` includes the section when present. `deserialize()`
+keeps an otherwise valid core save loadable when this optional section is absent, malformed, or an
+unsupported version by replacing it with deterministic defaults derived from the canonical save.
+
+The JSON-safe v1 section contains:
+
+- `exterior`: continuous world position and yaw plus stable authored `regionId` and `estateId`;
+- `life`: the complete `LifeSimulationState`, including all 240 NPC records, calendar position,
+  relationships, memories, structure bindings, active events, event history, and resolution
+  progress;
+- `interior`: either `null` or the active structure content ID, interior graph ID, room ID, floor,
+  local position, exterior return pose, resolved door-access steps, current station or fixture use,
+  sanitation stage and completion, and the interior runtime's serial, tick, use counts, and
+  revision.
+
+Meshes, materials, colliders, renderer objects, input state, and transient presentation events are
+not serialized. The Farm tab captures the logical v1 snapshot after canonical mutations and before
+autosave, `saveNow()`, pause persistence, and disposal persistence. Restore resolves stable IDs
+against the current authored world and interior registries before applying a pose or interaction.
+An unresolved region, estate, structure, graph, room, door, station, or fixture is refused rather
+than redirected to an unrelated object; recovery proceeds from the deterministic exterior default.
+
 ---
 
 ## src/engine/palette.ts

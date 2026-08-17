@@ -15,7 +15,9 @@ export type {
 export {
   AUTHORED_ESTATE_ZONES,
   AUTHORED_VALLEY_BOUNDS,
+  AUTHORED_VALLEY_CELL_SIZE,
   AUTHORED_VALLEY_REGIONS,
+  authoredValleyLocationAt,
   buildAuthoredValleyWorldCell,
   createAuthoredValleyWorldCellBuilder,
 } from './authored-valley-world'
@@ -23,6 +25,7 @@ export type {
   AuthoredEstateZone,
   AuthoredValleyBounds,
   AuthoredValleyCellPoint,
+  AuthoredValleyLocation,
   AuthoredValleyRegion,
   AuthoredValleyRegionId,
   AuthoredValleyWorldCellBuilderOptions,

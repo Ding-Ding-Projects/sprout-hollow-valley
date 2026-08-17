@@ -28,6 +28,7 @@ import { MATERIALS } from './materials'
 import { REGIONS, startingRegions } from './regions'
 import { BARN_START_CAP, SILO_START_CAP } from './storage'
 import { REPUTATION_MAX, REPUTATION_START } from './economy'
+import { readValley3DSave } from './valley3d-save'
 import type {
   Facing,
   GameState,
@@ -120,9 +121,10 @@ export function deserialize(json: string): GameState | null {
     return null
   }
 
+  const normalizedSeed = Math.floor(seed)
   return {
     version: SAVE_VERSION,
-    seed: Math.floor(seed),
+    seed: normalizedSeed,
     year,
     season,
     day,
@@ -154,6 +156,14 @@ export function deserialize(json: string): GameState | null {
     orders: readOrders(raw['orders']),
     loans: readLoans(raw['loans']),
     stall: readStall(raw['stall']),
+    valley3d: readValley3DSave(raw['valley3d'], {
+      seed: normalizedSeed,
+      year,
+      season,
+      day,
+      minutes,
+      player,
+    }),
   }
 }
 

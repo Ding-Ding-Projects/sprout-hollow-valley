@@ -284,6 +284,23 @@ instance bindings, event source IDs, consent history, memories and expiry days,
 and the absolute calendar position. Unsupported or malformed save data should
 be rejected before simulation rather than silently repairing unknown IDs.
 
+The live Farm composition persists this snapshot in the optional, independently
+versioned `GameState.valley3d` section. Version 1 stores the complete
+`LifeSimulationState`, rather than reconstructing residents from the current farm
+clock, so the exact state of all 240 NPCs, active life events, event history, and
+event resolution progress survives save and restore. Farm-tab mutations and each
+autosave, explicit save, pause save, and disposal save refresh that snapshot from
+the live simulation.
+
+Backward compatibility is handled at the optional-section boundary. If
+`valley3d` is absent, malformed, or uses an unsupported section version, the core
+farm save remains valid and the 3D composition receives deterministic defaults.
+Once a v1 snapshot passes structural decoding, restore still validates its stable
+NPC, household, employment, structure, region, estate, and interior references
+against the current authored registries. A reference that has disappeared is not
+silently rebound to a different definition; the affected 3D restore is refused
+and resumes from its safe deterministic exterior state.
+
 ## Public module map
 
 There is no required global singleton; consumers import the focused modules

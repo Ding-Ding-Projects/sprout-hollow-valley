@@ -78,6 +78,22 @@ an accessible restroom-and-hand-washing route. Leaving through the entry door re
 to the exact exterior position and facing. Switching shell tabs pauses the frame loop and writes
 the canonical save without replacing the active Farm tab.
 
+### Persistent 3D Valley state
+
+`GameState` carries an optional, versioned `valley3d` section. Version 1 preserves the exact
+`LifeSimulationState` for all 240 residents and event progress; the exterior player pose, authored
+region, and estate; and, while inside a structure, its content and graph IDs, current room and
+floor, position, exterior return pose, resolved door access, active station or fixture use, and
+sanitation progress.
+
+The section remains optional so saves written before the live 3D composition can still load.
+Missing, malformed, or unsupported `valley3d` data migrates to deterministic defaults without
+invalidating an otherwise valid canonical farm save. The Farm tab refreshes the section on state
+mutations, autosaves, explicit saves, pause, and disposal. Restore revalidates every authored ID;
+if a region, estate, structure, graph, room, door, station, or fixture no longer exists, the
+corresponding 3D location or interaction is not activated and recovery uses the safe deterministic
+exterior state.
+
 ## Independent product identity
 
 Sprout Hollow Valley must never read, overwrite, import, update, uninstall, reset, or export

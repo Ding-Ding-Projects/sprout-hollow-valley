@@ -55,12 +55,15 @@ full package 146,451,446 bytes (SHA-256 `4a64b220025cbe6d6fedbf1a5e94be35f0282b7
 and a 92-byte `RELEASES` feed (SHA-256 `ff9f1915e9be6ff100f2c660208f6bfe2cc8c16f948320186ee60146feec6f2c`).
 
 A same-version hidden reinstall of that fix completed its Squirrel hook in 380 ms. A direct hidden
-launch produced a dynamic 1296×904 `Chrome_WidgetWin_1` Farm window titled
-`農場 — Sprout Hollow Valley`; Chromium contained no `ContentValidationError` and no uncaught
-exception. One nonfatal Three.js diagnostic remains (`Object3D.add: object not an instance ...
-undefined`), and the CDP DOM-detail probe timed out after its WebSocket connection produced no
-parseable response. The real Farm HWND is stronger evidence that renderer routing completed, but
-those two limitations remain tracked under [issue #1](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues/1).
+launch produced a dynamic 1296×904 `Chrome_WidgetWin_1` Farm-titled window
+(`農場 — Sprout Hollow Valley`), and Chromium no longer contained the original
+`ContentValidationError`. That is not a completed launch verdict: the fixed startup log never
+appended `application window loaded`, the CDP DOM-detail probe timed out without a parseable
+response, and the renderer appears to stall later in 3D startup. The leading console evidence is
+`Object3D.add: object not an instance ... undefined`. Commit
+`d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd` is therefore a recoverable intermediate fix, not a
+completed branch to integrate. The remaining stall is tracked under
+[issue #1](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues/1).
 
 ## Implemented architecture
 
@@ -143,8 +146,8 @@ all 400 factory queues, save/reload, and the exact 240-NPC simulation is still a
 
 All items remain tracked by [issue #1](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues/1):
 
-1. Integrate `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd`, then bump to a new unused version and publish it only through the create-only release workflow when release work is explicitly requested. Do not replace v1.2.11 assets.
-2. Trace and remove the nonfatal Three.js `Object3D.add` diagnostic, then repeat the installed interaction with a reliable renderer-DOM or semantic-state probe.
+1. Trace and fix the post-catalogue 3D startup stall led by the `Object3D.add` diagnostic on `fix/v1211-installed-launch`; do not merge intermediate commit `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd` as a complete launch repair.
+2. Package and reinstall the completed fix, require both the Farm window and `application window loaded`, and obtain a reliable renderer-DOM or semantic-state probe before integrating it. A later release must use a new unused version and must not replace v1.2.11 assets.
 3. Run the current 38-file Vitest suite and record its exact expanded pass/fail/skip count at the commit tested.
 4. Add installed-artifact automation for the 700-structure traversal, sanitation, estate-farming, factory-production, NPC, and save/reload contracts.
 5. Produce genuine current-build captures only after the renderer works; existing committed images predate the live Valley runtime and are not evidence for the new 3D implementation.
@@ -155,7 +158,7 @@ All items remain tracked by [issue #1](https://github.com/Ding-Ding-Projects/spr
 ## Repository state at handoff drafting
 
 - Default branch and GitHub `main`: `63b377ff81a4a91d0f46cfbc359d9dae7e192b33` before the active installed-launch fix is integrated.
-- The feature and release branches listed by `git worktree list` are already ancestors of `main`, except `fix/v1211-installed-launch` at `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd`, which is package- and installed-runtime-proven but not yet integrated at the time this handoff is written.
+- The feature and release branches listed by `git worktree list` are already ancestors of `main`, except `fix/v1211-installed-launch` at `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd`. That commit fixes catalogue validation and packages successfully, but its installed renderer still stalls before the load boundary; the branch is deliberately retained and not integrated as complete.
 - No stash exists.
 - The primary worktree is clean apart from this newly created handoff file.
 - Worktree and branch cleanup must happen only after the active fix and this handoff are committed, integrated, pushed, and proven ancestors of the final `main`.

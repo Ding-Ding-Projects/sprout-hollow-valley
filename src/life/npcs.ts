@@ -11,6 +11,7 @@ import type {
   SchedulePlan,
   StructureKind,
 } from './types'
+import { structureDefinitionId } from './catalog'
 
 const authoredIdentity = (
   displayName: string,
@@ -353,7 +354,7 @@ export const AUTHORED_NPC_IDENTITIES: readonly NPCIdentity[] = [
   authoredIdentity('Mohan Nair', 'he-him', 'elder', 'summer', 14),
 ]
 
-const padDefinitionNumber = (value: number): string => String(value).padStart(3, '0')
+const padHouseholdNumber = (value: number): string => String(value).padStart(3, '0')
 
 const slugifyName = (displayName: string): string =>
   displayName
@@ -445,50 +446,50 @@ interface EmploymentProfile {
 
 const EMPLOYMENT_PROFILES = [
   {
-    roleId: 'role:grower',
-    stationRoleId: 'station-role:agriculture',
+    roleId: 'shv:employment-role:farmer',
+    stationRoleId: 'shv:station-role:agriculture',
     structureKind: 'building',
     skillId: 'skill:agriculture',
   },
   {
-    roleId: 'role:animal-carer',
-    stationRoleId: 'station-role:animal-care',
+    roleId: 'shv:employment-role:animal-caretaker',
+    stationRoleId: 'shv:station-role:animal-care',
     structureKind: 'building',
     skillId: 'skill:animal-care',
   },
   {
-    roleId: 'role:maker',
-    stationRoleId: 'station-role:production',
+    roleId: 'shv:employment-role:production-operator',
+    stationRoleId: 'shv:station-role:production',
     structureKind: 'factory',
     skillId: 'skill:production',
   },
   {
-    roleId: 'role:quality-steward',
-    stationRoleId: 'station-role:quality-control',
+    roleId: 'shv:employment-role:quality-inspector',
+    stationRoleId: 'shv:station-role:quality-control',
     structureKind: 'factory',
     skillId: 'skill:quality-control',
   },
   {
-    roleId: 'role:shopkeeper',
-    stationRoleId: 'station-role:customer-service',
+    roleId: 'shv:employment-role:service-host',
+    stationRoleId: 'shv:station-role:customer-service',
     structureKind: 'building',
     skillId: 'skill:customer-service',
   },
   {
-    roleId: 'role:cook',
-    stationRoleId: 'station-role:cooking',
+    roleId: 'shv:employment-role:cook',
+    stationRoleId: 'shv:station-role:cooking',
     structureKind: 'building',
     skillId: 'skill:cooking',
   },
   {
-    roleId: 'role:researcher',
-    stationRoleId: 'station-role:research',
+    roleId: 'shv:employment-role:researcher',
+    stationRoleId: 'shv:station-role:research',
     structureKind: 'factory',
     skillId: 'skill:research',
   },
   {
-    roleId: 'role:cleaner',
-    stationRoleId: 'station-role:cleaning',
+    roleId: 'shv:employment-role:custodian',
+    stationRoleId: 'shv:station-role:cleaning',
     structureKind: 'building',
     skillId: 'skill:cleaning',
   },
@@ -503,7 +504,7 @@ const makeEmploymentAssignment = (npcIndex: number): EmploymentAssignment => {
   const sharedSiteCohort = Math.floor(roleCohort / 2)
   const siteSeed = sharedSiteCohort * EMPLOYMENT_PROFILES.length + profileIndex
   const structureKind: StructureKind =
-    profile.roleId === 'role:cleaner'
+    profile.roleId === 'shv:employment-role:custodian'
       ? sharedSiteCohort % 2 === 0
         ? 'building'
         : 'factory'
@@ -515,7 +516,7 @@ const makeEmploymentAssignment = (npcIndex: number): EmploymentAssignment => {
 
   return {
     roleId: profile.roleId,
-    structureDefinitionId: `structure:${structureKind}:${padDefinitionNumber(definitionNumber)}`,
+    structureDefinitionId: structureDefinitionId(structureKind, definitionNumber),
     stationRoleId: profile.stationRoleId,
     structureInstanceId: null,
   }
@@ -710,13 +711,13 @@ export const HOUSEHOLD_BLUEPRINTS: readonly HouseholdBlueprint[] = Array.from(
     const householdNumber = householdIndex + 1
     const firstMemberIndex = householdIndex * 3
     return {
-      id: `household:${padDefinitionNumber(householdNumber)}`,
+      id: `household:${padHouseholdNumber(householdNumber)}`,
       memberIds: [
         NPC_IDS[firstMemberIndex],
         NPC_IDS[firstMemberIndex + 1],
         NPC_IDS[firstMemberIndex + 2],
       ],
-      homeStructureDefinitionId: `structure:building:${padDefinitionNumber(householdNumber)}`,
+      homeStructureDefinitionId: structureDefinitionId('building', householdNumber),
     }
   },
 )

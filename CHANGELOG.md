@@ -47,6 +47,12 @@ catalogue is implemented.
   jumping, streamed fallback terrain, static collision, orbit/zoom/recenter/shoulder controls,
   keyboard/mouse/gamepad input through one logical controller, responsive WebGL sizing, readable
   boot/failure states, and shell-owned pause, resume, focus, and disposal.
+- A deterministic 3D gameplay adapter that maps stable world-space targets to the existing farming,
+  livestock, placement, storage, and production actions, with per-target prompts, placement
+  highlights, storage capacity readouts, and complete accessible outcome text.
+- First-class crop, orchard-tree, animal, building, machine, and interior-station target contracts.
+  Tree mutations fail closed until a canonical tree transaction is bound, preventing the renderer
+  from inventing separate time, energy, yield, quality, inventory, or save rules.
 - An original Sprout Hollow Valley application mark with a committed alpha master and a
   deterministic ten-frame Windows icon generator, wired into executable and Squirrel.Windows
   metadata while preserving unsigned packaging.

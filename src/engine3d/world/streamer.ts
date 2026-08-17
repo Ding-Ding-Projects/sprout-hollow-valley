@@ -126,7 +126,7 @@ export class WorldCellStreamer<T> {
 
   async #finishDispose(): Promise<void> {
     await this.#tail
-    const cells = this.snapshot().reverse()
+    const cells = [...this.snapshot()].reverse()
     this.#resident.clear()
     if (!this.#source.unload) return
     const failures: WorldCellFailure[] = []

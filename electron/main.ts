@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import type { IpcMainInvokeEvent, WebContents } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -10,14 +10,6 @@ import {
   SAVE_FILENAME,
   USER_DATA_DIRECTORY_NAME,
 } from './identity'
-
-// This product is intentionally installed beside Sprout Hollow, never over it. Resolve
-// the stable data root explicitly instead of inheriting Electron's package-name default.
-app.setName(PRODUCT_NAME)
-const userDataPath = path.join(app.getPath('appData'), USER_DATA_DIRECTORY_NAME)
-fs.mkdirSync(userDataPath, { recursive: true })
-app.setPath('userData', userDataPath)
-if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
 
 /** 4x the 320x224 logical framebuffer, and 2x as the floor. */
 const WINDOW_W = 1280
@@ -36,7 +28,49 @@ const CSP = [
   "connect-src 'self'",
 ].join('; ')
 
-const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? ''
+// An installed build must never inherit a developer shell's server override.
+const DEV_SERVER_URL = app.isPackaged ? '' : (process.env.VITE_DEV_SERVER_URL?.trim() ?? '')
+
+let mainWindow: BrowserWindow | null = null
+let fatalStartupReported = false
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) return error.message
+  const text = String(error)
+  return text.trim().length > 0 ? text : 'Unknown startup error.'
+}
+
+/** Reports a concise failure without dumping environment variables or a stack trace. */
+function reportFatalStartup(stage: string, error: unknown): void {
+  if (fatalStartupReported) return
+  fatalStartupReported = true
+  const message = `${stage}: ${errorMessage(error)}`
+  process.stderr.write(`[startup] ${message}\n`)
+  if (!wantsCapture(process.argv)) {
+    dialog.showErrorBox(`${PRODUCT_NAME} could not start`, message)
+  }
+  app.exit(1)
+}
+
+/**
+ * This product is intentionally installed beside Sprout Hollow, never over it.
+ * Configure its stable data root before Electron creates a session.
+ */
+function configureApplicationIdentity(): void {
+  app.setName(PRODUCT_NAME)
+  const userDataPath = path.join(app.getPath('appData'), USER_DATA_DIRECTORY_NAME)
+  fs.mkdirSync(userDataPath, { recursive: true })
+  app.setPath('userData', userDataPath)
+  if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+}
+
+function requiredApplicationFile(label: string, ...segments: string[]): string {
+  const file = path.join(app.getAppPath(), ...segments)
+  if (!fs.existsSync(file)) {
+    throw new Error(`${label} is missing from the application bundle.`)
+  }
+  return file
+}
 
 /** Generous ceiling on an incoming save. A full farm serialises to a fraction of this. */
 const MAX_SAVE_BYTES = 4 * 1024 * 1024
@@ -132,7 +166,18 @@ function pushMaximizedState(win: BrowserWindow): void {
   win.webContents.send(IPC_CHANNELS.windowMaximizedChanged, win.isMaximized())
 }
 
-function createWindow(): void {
+function revealWindow(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  if (!win.isVisible()) win.show()
+  win.focus()
+}
+
+async function createWindow(): Promise<void> {
+  const preloadFile = requiredApplicationFile('The secure preload', 'dist-electron', 'preload.js')
+  const rendererFile = DEV_SERVER_URL
+    ? null
+    : requiredApplicationFile('The application interface', 'dist', 'index.html')
   const win = new BrowserWindow({
     width: WINDOW_W,
     height: WINDOW_H,
@@ -146,7 +191,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadFile,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -156,6 +201,10 @@ function createWindow(): void {
       // throttled to a crawl and every capture photographs the same frame.
       backgroundThrottling: !wantsCapture(process.argv),
     },
+  })
+  mainWindow = win
+  win.once('closed', () => {
+    if (mainWindow === win) mainWindow = null
   })
 
   if (wantsCapture(process.argv)) {
@@ -169,18 +218,27 @@ function createWindow(): void {
       app.exit(1)
     })
   } else {
-    win.once('ready-to-show', () => win.show())
+    win.once('ready-to-show', () => revealWindow(win))
   }
   win.setMenuBarVisibility(false)
   win.on('maximize', () => pushMaximizedState(win))
   win.on('unmaximize', () => pushMaximizedState(win))
+  win.webContents.once('preload-error', (_event, _preloadPath, error) => {
+    reportFatalStartup('The secure desktop bridge could not load', error)
+  })
   harden(win.webContents)
 
-  if (DEV_SERVER_URL) {
-    win.loadURL(DEV_SERVER_URL).catch(() => undefined)
-  } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html')).catch(() => undefined)
+  try {
+    if (rendererFile !== null) await win.loadFile(rendererFile)
+    else await win.loadURL(DEV_SERVER_URL)
+  } catch (error) {
+    if (!win.isDestroyed()) win.destroy()
+    throw new Error(`The application interface could not load: ${errorMessage(error)}`)
   }
+
+  // `ready-to-show` is paint-dependent. A successful document load is a safe
+  // fallback that prevents an otherwise healthy frameless window staying hidden.
+  if (!wantsCapture(process.argv)) revealWindow(win)
 }
 
 function registerSaveHandlers(): void {
@@ -242,19 +300,45 @@ function applySecurityHeaders(): void {
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, done) => done(false))
 }
 
-app.whenReady().then(
-  () => {
-    applySecurityHeaders()
-    registerSaveHandlers()
-    registerWindowHandlers()
-    createWindow()
+async function startApplication(): Promise<void> {
+  await app.whenReady()
+  applySecurityHeaders()
+  registerSaveHandlers()
+  registerWindowHandlers()
+  await createWindow()
 
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      void createWindow().catch((error: unknown) => {
+        reportFatalStartup('The application window could not be created', error)
+      })
+      return
+    }
+    if (mainWindow !== null) revealWindow(mainWindow)
+  })
+}
+
+let identityConfigured = true
+try {
+  configureApplicationIdentity()
+} catch (error) {
+  identityConfigured = false
+  reportFatalStartup('The application data directory could not be prepared', error)
+}
+
+if (identityConfigured) {
+  const hasSingleInstanceLock = app.requestSingleInstanceLock()
+  if (!hasSingleInstanceLock) {
+    app.quit()
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow !== null) revealWindow(mainWindow)
     })
-  },
-  () => app.quit(),
-)
+    void startApplication().catch((error: unknown) => {
+      reportFatalStartup('Application startup failed', error)
+    })
+  }
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

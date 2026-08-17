@@ -56,17 +56,18 @@ livestock care, production queues, building placement, levels 1-100, storage,
 moving prices, market events, contracts, five selling channels, reputation,
 credit, tax, deterministic simulation, and no unwinnable fail state.
 
-The complete release must contain at least:
+The complete release must contain at least 5,000 unique non-NPC content
+definitions, distributed as follows:
 
-- 100 field crops.
-- 50 trees, orchard plants, bushes, and vines.
-- 35 animal species.
-- 75 factory or production-facility definitions.
-- 60 non-factory building definitions.
-- 300 sellable products.
-- 250 production recipes.
-- 40 raw-material types.
-- 80 functional decorations, paths, fences, signs, lights, and outdoor
+- 500 field crops.
+- 250 trees, orchard plants, bushes, and vines.
+- 150 animal species.
+- 400 factory or production-facility definitions.
+- 300 non-factory building definitions.
+- 1,500 sellable products.
+- 1,200 production recipes.
+- 300 raw-material types.
+- 400 functional decorations, paths, fences, signs, lights, and outdoor
   objects.
 
 Typed registries define every crop, tree, animal, product, recipe, material,
@@ -77,7 +78,7 @@ capture evidence.
 
 ## Fully enterable buildings and factories
 
-Every one of the 135 building and factory definitions has a complete exterior,
+Every one of the 700 building and factory definitions has a complete exterior,
 collision footprint, usable entrance and exit, separately streamed interior,
 and room graph covering every floor, room, door, stair, elevator, and
 restricted area. Interiors include functional lighting, furniture, storage,
@@ -246,7 +247,7 @@ update assets, workflow timing evidence, and an unused public dim-sum code
 name. GitHub Actions builds and publishes but does not run tests, lint,
 type-checking, static analysis, or coverage gates; those checks run locally.
 
-Completion requires all 135 structures to be fully enterable and detailed,
+Completion requires all 700 structures to be fully enterable and detailed,
 every visible door to have a real eventual destination, all sanitation and
 work stations to function, all 240 NPCs to simulate and converse correctly,
 all local checks to pass, the installed application to be exercised through

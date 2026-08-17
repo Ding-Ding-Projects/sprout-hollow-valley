@@ -40,6 +40,8 @@ does not claim that the planned 3D world or complete content catalogue is implem
 - Windows batch entrypoints for reproducible application and installer builds. They validate
   Node.js, npm, and the lockfile, install locked dependencies, preserve failing command exit
   codes, and require nonempty versioned Squirrel.Windows artifacts before reporting success.
+- A Windows batch entrypoint that installs locked dependencies, launches the desktop application
+  in the foreground, and returns the application's eventual command exit code.
 
 ### Delivery note
 

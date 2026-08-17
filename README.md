@@ -114,7 +114,18 @@ warnings, consent, and recovery instructions keep the same meaning at every leve
 
 ## Building locally
 
-Use Node.js 22 or newer. From Command Prompt or PowerShell, run the application build with:
+Use Node.js 22 or newer. From Command Prompt or PowerShell, install the locked dependencies,
+build the application, and launch it with:
+
+```powershell
+.\run.bat
+```
+
+`run.bat` checks for Node.js, npm, and `package-lock.json`, installs the locked dependencies
+with `npm ci --no-audit`, and runs `npm start` in the foreground. It waits until the application
+exits and returns the command's eventual exit code.
+
+To build the application without launching it, run:
 
 ```powershell
 .\build.bat

@@ -10,6 +10,8 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-08-17
+
 ### Added
 
 - Deterministic production state for all 400 enterable factories and all 1,200 registered

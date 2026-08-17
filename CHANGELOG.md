@@ -16,6 +16,14 @@ establishes the shell, website, product identity, public documentation, and a pl
 runtime foundation; it does not claim that the fully authored world or complete content
 catalogue is implemented.
 
+### Fixed
+
+- Release publishing is now explicit and create-once. Ordinary `main` pushes cannot publish;
+  tag runs must exactly match the manifest version, manual runs require an unused version tag,
+  and preflight rejects an existing release before packaging. The workflow never moves tags,
+  edits releases, or clobbers assets, and release notes name the configured
+  `Sprout-Hollow-Valley-Setup-${version}.exe` installer.
+
 ### Added
 
 - A selectable authored Three.js valley world-cell source with globally continuous low-poly

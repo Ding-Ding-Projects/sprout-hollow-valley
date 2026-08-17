@@ -45,6 +45,11 @@ does not claim that the planned 3D world or complete content catalogue is implem
 
 ### Fixed
 
+- The GitHub Pages build now uses the Sprout Hollow Valley project path, so its
+  compiled stylesheet and script load from `/sprout-hollow-valley/` instead of
+  the unrelated inherited `/farming-game/` path. Documentation cards now link
+  to their published repository sources, and the responsive landing-page shell
+  includes complete navigation, language, fact-card, and website-boundary styling.
 - Squirrel install, update, uninstall, and obsolete lifecycle launches now finish before normal
   Electron startup, preventing installer hook timeouts, stale single-instance processes, locked
   packaged DLLs, and the corrupt partial reinstall that previously left the app unable to launch.

@@ -1,11 +1,14 @@
 import {
   clearDebris,
+  fellTree,
   fertilize,
   harvest,
+  harvestTree,
   placeSprinkler,
   selectSeed,
   setTool,
   sow,
+  sowTree,
   till,
   water,
 } from '../../game/actions'
@@ -72,6 +75,9 @@ export const DEFAULT_GAMEPLAY_RULES: Readonly<GameplayRuleBindings> = Object.fre
   collectMachine,
   interiorFor,
   useStation,
+  sowTree,
+  harvestTree,
+  fellTree,
 })
 
 export function toolSelectionCommands(): readonly GameplayCommand[] {
@@ -239,7 +245,9 @@ function useToolAt(
     case 'hand':
       return harvestAt(rules, state, index)
     case 'axe':
-      return state.tiles[index]?.ground === 'grass'
+      return state.tiles[index]?.plant !== null && treeById(state.tiles[index]!.plant!.cropId) !== undefined
+        ? (rules.fellTree?.(state, index) ?? treeBindingRefusal(state, 'harvest'))
+        : state.tiles[index]?.ground === 'grass'
         ? rules.cutGrass(state, index)
         : rules.clearDebris(state, index)
     case 'sprinkler':
@@ -318,7 +326,11 @@ export function executeGameplayCommand(
       return outcome(
         command,
         target,
-        state.tiles[command.tileIndex]?.ground === 'grass'
+        state.tiles[command.tileIndex]?.plant !== null
+          && state.tiles[command.tileIndex]?.plant !== undefined
+          && treeById(state.tiles[command.tileIndex]!.plant!.cropId) !== undefined
+          ? (rules.fellTree?.(state, command.tileIndex) ?? treeBindingRefusal(state, 'harvest'))
+          : state.tiles[command.tileIndex]?.ground === 'grass'
           ? rules.cutGrass(state, command.tileIndex)
           : rules.clearDebris(state, command.tileIndex),
       )

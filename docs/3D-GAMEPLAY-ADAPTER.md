@@ -49,6 +49,21 @@ Interior stations use a stable key derived from their canonical kind, cell, foot
 reference. The key is resolved against a freshly derived `interiorFor(state, buildingId)` before
 station use, so a stale pen or machine bench cannot act on a different occupant.
 
+### Authored estate targets
+
+The Farm composition uses a narrow save-backed route for authored estate farming meshes. It climbs
+each camera-center ray hit to a semantic owner and accepts only `estate-farm-tile`,
+`estate-farm-crop`, `estate-farm-debris`, `estate-orchard-slot`, or `estate-orchard-tree` with a
+string `estateFarmKey`. The exact `estate:<id>@<worldX>,<worldZ>` key must resolve through
+`estateFarmingDescription()` in the loaded `valley3d.estateFarming` snapshot. A missing snapshot,
+unknown key, stale presentation object, or non-designated coordinate produces no active target.
+
+Execution revalidates the record key and the canonical eight-estate layout independently of the
+raycast. Field interactions call `useEstatePlotTool()`; orchard slots and existing trees call
+`useEstateTreeTool()`. The bridge reuses the canonical field, crop, tree, inventory, time, energy,
+weather, season, yield, and quality rules. It never maps an arbitrary world hit into the inherited
+farm grid or lets renderer state define a new farming rule.
+
 ## Commands and canonical actions
 
 The immutable `GameplayCommand` union covers:
@@ -78,15 +93,14 @@ refusal text. Chest, crate, shelf, hayloft, and bag stations remain the storage 
 
 ### Tree actions fail closed
 
-Tree definitions already provide deterministic growth primitives, but the inherited action module
-does not expose one complete plant-sapling or pick-tree transaction. Re-creating seed removal,
-yield quality, energy, time, and storage decisions inside the renderer would split the rules engine.
+The generic adapter executes tree planting or harvesting only when its optional canonical tree
+bindings are supplied. An unbound generic tree command still returns an accessible refusal and
+leaves state, items, time, energy, and the tree untouched rather than inventing renderer rules.
 
-The adapter therefore recognizes tree targets and exposes tree planting and harvesting through the
-optional `sowTree` and `harvestTree` rule bindings. Until a canonical rules-layer transaction is
-connected, those commands return an accessible refusal and leave the state, item, time, energy, and
-tree untouched. It never routes a tree through the field-crop harvest path, which would remove the
-standing tree incorrectly.
+Authored estate orchards use the canonical `sowTree`, `harvestTree`, and `fellTree` transactions
+through their dedicated rules bridge. Empty marked slots accept only a selected registered
+sapling. Existing trees accept hand harvest/status or axe felling; the watering can and field
+fertilizer return explicit tree-care refusals. No tree is routed through field-crop harvest.
 
 ## Overlay contract
 
@@ -99,6 +113,12 @@ scene and the accessible HTML layer:
 - the exact current target detail and input label;
 - silo and barn used/capacity/free rows; and
 - one complete `announcement` string suitable for a polite live region.
+
+For an authored estate target, the Farm HUD provides the save-backed plot or tree detail, current
+canonical tool action, next-tool control, and the same interaction-distance gate used by direct
+input. Its focusable action and live feedback text report refusals and accepted outcomes without
+using colour or geometry as the only signal. After an accepted action, the runtime refreshes the
+resident authored cell from the updated logical snapshot.
 
 Placement previews call the existing `canPlace` verdict and preserve its per-tile reasons. A green
 spatial preview does not predict that the player can afford the object: the actual placement action
@@ -126,3 +146,8 @@ render frame:
 Keyboard/mouse and gamepad both produce the same logical command. Pointer location and camera frame
 rate affect only which rendered target is offered; once selected, the same command and same
 `GameState` produce the same canonical result.
+
+Authored estate farming follows the same explicit-input-edge rule. Its raycast target is resolved
+from exact save-backed metadata, its action is revalidated at execution time, and its outcome is
+committed through the existing Farm-tab autosave and accessible feedback path. When resolution
+fails, the HUD offers no estate action and the logical state remains unchanged.

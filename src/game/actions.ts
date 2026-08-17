@@ -51,6 +51,14 @@ import {
   xpFor,
 } from './progression'
 import { regionAt } from './regions'
+import {
+  growTree,
+  isTreeRipe,
+  pickTree,
+  plantTree,
+  treeById,
+  treeYield,
+} from './trees'
 
 /** Gold docked when the farmer is carried home unconscious. */
 const MEDICAL_FEE = 50
@@ -152,7 +160,7 @@ export function setTool(state: GameState, tool: ToolId): GameState {
 
 export function selectSeed(state: GameState, cropId: string | null): GameState {
   if (state.selectedSeed === cropId) return state
-  if (cropId !== null && !cropById(cropId)) return state
+  if (cropId !== null && !cropById(cropId) && !treeById(cropId)) return state
   const s = cloneState(state)
   s.selectedSeed = cropId
   return s
@@ -287,6 +295,34 @@ export function sow(state: GameState, index: number, cropId: string): ActionResu
   return done(s, `${name} SOWN.`, 'plant', [{ kind: 'dirt', index }])
 }
 
+/** Plants any legacy or authored-registry perennial through the canonical action economy. */
+export function sowTree(state: GameState, index: number, treeId: string): ActionResult {
+  const stop = guard(state, index, ENERGY_COST.plant)
+  if (stop) return refuse(state, stop)
+  const tree = treeById(treeId)
+  if (!tree) return refuse(state, 'YOU HAVE NO SUCH SAPLING.')
+  const tile = state.tiles[index]
+  if (tile.ground !== 'soil') {
+    if (tile.ground === 'grass') return refuse(state, 'TILL THE GROUND FIRST.')
+    if (tile.ground === 'weeds' || tile.ground === 'rock' || tile.ground === 'log') {
+      return refuse(state, `CLEAR THE ${debrisName(tile.ground)} FIRST.`)
+    }
+    return refuse(state, 'A SAPLING WILL NOT TAKE THERE.')
+  }
+  if (tile.plant) return refuse(state, 'SOMETHING IS ALREADY GROWING HERE.')
+  const sapling: ItemRef = { kind: 'seed', cropId: treeId }
+  if (countItem(state, sapling) < 1) {
+    return refuse(state, `NO ${tree.name.toUpperCase()} SAPLING IN THE BAG.`)
+  }
+  const spent = removeItem(state, sapling, 1)
+  if (!spent) return refuse(state, `NO ${tree.name.toUpperCase()} SAPLING IN THE BAG.`)
+  const s = spent
+  s.tiles[index].plant = { ...plantTree(treeId), fertilized: tile.fertilized }
+  s.stats.cropsPlanted += 1
+  spend(s, ENERGY_COST.plant)
+  return done(s, `${tree.name.toUpperCase()} SAPLING PLANTED.`, 'plant', [{ kind: 'dirt', index }])
+}
+
 /**
  * The stage a regrowing crop falls back to: far enough down the ladder that the
  * watered days left to ripen cover `regrowDays`.
@@ -388,6 +424,69 @@ export function harvest(state: GameState, index: number): ActionResult {
   const suffix = quality === 'normal' ? '' : ` - ${quality.toUpperCase()}!`
   const tail = regrowing ? ' IT WILL BEAR AGAIN.' : ''
   return done(awarded.state, `PICKED ${amount} ${name}${suffix}.${tail}${levelled}`, 'harvest', fx)
+}
+
+/** Harvests a perennial without replacing its fruiting cycle or quality economy. */
+export function harvestTree(state: GameState, index: number): ActionResult {
+  const stop = guard(state, index, ENERGY_COST.harvest)
+  if (stop) return refuse(state, stop)
+  const plant = state.tiles[index]?.plant
+  const tree = plant === null || plant === undefined ? undefined : treeById(plant.cropId)
+  if (plant === null || plant === undefined || tree === undefined) {
+    return refuse(state, 'THERE IS NO TREE FRUIT TO PICK HERE.')
+  }
+  if (!isTreeRipe(plant, tree)) {
+    return refuse(state, `THE ${tree.name.toUpperCase()} TREE IS NOT READY YET.`)
+  }
+  const rand = rngFor(
+    state.seed,
+    `tree-harvest:${state.year}:${state.season}:${state.day}:${index}:${state.stats.harvested}:${plant.regrown}`,
+  )
+  const amount = treeYield(tree, plant, rand)
+  const quality = rollQuality(rand, plant.fertilized, plant.regrown)
+  const picked: ItemRef = { kind: 'produce', cropId: tree.id, quality }
+  const room = spaceCheck(state, picked, amount)
+  if (!room.ok) return refuse(state, `${room.message} THE FRUIT STAYS ON THE TREE.`)
+  const deposit = depositItem(state, picked, amount)
+  const s = deposit.state
+  const nextPlant = s.tiles[index]?.plant
+  if (nextPlant !== null && nextPlant !== undefined) {
+    s.tiles[index].plant = pickTree(nextPlant, tree)
+  }
+  s.stats.harvested += deposit.stored
+  spend(s, ENERGY_COST.harvest)
+  const awarded = grantXp(s, xpFor('harvest', deposit.stored), 'harvest')
+  const suffix = quality === 'normal' ? '' : ` - ${quality.toUpperCase()}!`
+  return done(
+    awarded.state,
+    `PICKED ${amount} ${tree.name.toUpperCase()}${suffix}. IT WILL BEAR AGAIN.`,
+    'harvest',
+    quality === 'gold'
+      ? [{ kind: 'pop', index }, { kind: 'sparkle', index }]
+      : [{ kind: 'pop', index }],
+  )
+}
+
+/** Fells a perennial reversibly and returns its declared wood through canonical materials. */
+export function fellTree(state: GameState, index: number): ActionResult {
+  const stop = guard(state, index, ENERGY_COST.clearLog)
+  if (stop) return refuse(state, stop)
+  const plant = state.tiles[index]?.plant
+  const tree = plant === null || plant === undefined ? undefined : treeById(plant.cropId)
+  if (plant === null || plant === undefined || tree === undefined) {
+    return refuse(state, 'THERE IS NO TREE TO CLEAR THERE.')
+  }
+  let s = cloneState(state)
+  s.tiles[index].plant = null
+  s = addMaterials(s, { wood: tree.wood })
+  spend(s, ENERGY_COST.clearLog)
+  const awarded = grantXp(s, xpFor('clear'), 'clear')
+  return done(
+    awarded.state,
+    `THE ${tree.name.toUpperCase()} TREE IS FELLED. WOOD ${tree.wood}.`,
+    'chop',
+    [{ kind: 'leaf', index }],
+  )
 }
 
 export function clearDebris(state: GameState, index: number): ActionResult {
@@ -549,6 +648,69 @@ function wetsEverything(weather: Weather): boolean {
   return weather === 'rain' || weather === 'storm'
 }
 
+export interface PlantNightResult {
+  readonly watered: number
+  readonly grew: number
+  readonly ripened: number
+  readonly withered: number
+}
+
+/**
+ * Advances one farm tile using the same crop, tree, fertilizer, weather and withering rules
+ * used by the inherited farm. It mutates only the supplied detached tile.
+ */
+export function advancePlantTileNight(
+  tile: Tile,
+  season: Season,
+  dayEnded: number,
+  weather: Weather,
+): PlantNightResult {
+  if (tile.ground === 'soil' && wetsEverything(weather)) tile.watered = true
+  const result = { watered: tile.ground === 'soil' && tile.watered ? 1 : 0, grew: 0, ripened: 0, withered: 0 }
+  const plant = tile.plant
+  if (plant !== null && !plant.dead) {
+    const tree = treeById(plant.cropId)
+    if (tree !== undefined) {
+      const wasRipe = isTreeRipe(plant, tree)
+      const grown = growTree(plant, tree, season)
+      if (grown.stage !== plant.stage || grown.progress !== plant.progress) result.grew += 1
+      if (!wasRipe && isTreeRipe(grown, tree)) result.ripened += 1
+      tile.plant = grown
+    } else {
+      const crop = cropById(plant.cropId)
+      if (crop !== undefined) {
+        if (tile.watered) {
+          plant.dry = 0
+          if (plant.stage < crop.stageDays.length) {
+            plant.progress += plant.fertilized && dayEnded % 2 === 0 ? 2 : 1
+            result.grew += 1
+            while (
+              plant.stage < crop.stageDays.length &&
+              plant.progress >= Math.max(1, crop.stageDays[plant.stage])
+            ) {
+              plant.progress -= Math.max(1, crop.stageDays[plant.stage])
+              plant.stage += 1
+            }
+            if (plant.stage >= crop.stageDays.length) {
+              plant.stage = crop.stageDays.length
+              plant.progress = 0
+              result.ripened += 1
+            }
+          }
+        } else {
+          plant.dry += 1
+          if (plant.dry >= DRY_DAYS_TO_WITHER && plant.stage > 0) {
+            plant.dead = true
+            result.withered += 1
+          }
+        }
+      }
+    }
+  }
+  tile.watered = false
+  return result
+}
+
 /** Sprinklers reach their four orthogonal neighbours, and only tilled soil holds water. */
 function runSprinklers(tiles: Tile[]): void {
   for (let i = 0; i < tiles.length; i++) {
@@ -610,40 +772,57 @@ export function sleep(state: GameState): { state: GameState; report: DayReport }
   let ripened = 0
   let withered = 0
 
-  for (const t of s.tiles) {
-    if (t.ground === 'soil' && t.watered) watered += 1
-
-    const p = t.plant
-    if (!p || p.dead) continue
-    const crop = cropById(p.cropId)
-    if (!crop) continue
-
-    if (t.watered) {
-      p.dry = 0
-      if (p.stage < crop.stageDays.length) {
-        // Fertilized ground gives a bonus day of growth every other day.
-        p.progress += p.fertilized && dayEnded % 2 === 0 ? 2 : 1
-        grew += 1
-        while (p.stage < crop.stageDays.length && p.progress >= Math.max(1, crop.stageDays[p.stage])) {
-          p.progress -= Math.max(1, crop.stageDays[p.stage])
-          p.stage += 1
-        }
-        if (p.stage >= crop.stageDays.length) {
-          p.stage = crop.stageDays.length
-          p.progress = 0
-          ripened += 1
-        }
-      }
-    } else {
-      p.dry += 1
-      if (p.dry >= DRY_DAYS_TO_WITHER && p.stage > 0) {
-        p.dead = true
-        withered += 1
-      }
-    }
+  for (const tile of s.tiles) {
+    const result = advancePlantTileNight(tile, s.season, dayEnded, night)
+    watered += result.watered
+    grew += result.grew
+    ripened += result.ripened
+    withered += result.withered
   }
 
-  for (const t of s.tiles) t.watered = false
+  const estateFarming = s.valley3d?.estateFarming
+  if (estateFarming !== undefined) {
+    for (const key of Object.keys(estateFarming.plotTiles).sort()) {
+      const saved = estateFarming.plotTiles[key]!
+      const tile: Tile = {
+        ground: saved.ground,
+        watered: saved.watered,
+        fertilized: saved.fertilized,
+        sprinkler: false,
+        plant: saved.plant === null ? null : { ...saved.plant },
+        variant: saved.variant,
+        buildingId: null,
+        machineId: null,
+      }
+      const result = advancePlantTileNight(tile, s.season, dayEnded, night)
+      saved.ground = tile.ground === 'soil' || tile.ground === 'weeds' || tile.ground === 'rock'
+        || tile.ground === 'log' ? tile.ground : 'grass'
+      saved.watered = tile.watered
+      saved.fertilized = tile.fertilized
+      saved.plant = tile.plant === null ? null : { ...tile.plant }
+      watered += result.watered
+      grew += result.grew
+      ripened += result.ripened
+      withered += result.withered
+    }
+    for (const key of Object.keys(estateFarming.trees).sort()) {
+      const saved = estateFarming.trees[key]!
+      const tile: Tile = {
+        ground: 'soil',
+        watered: false,
+        fertilized: saved.plant.fertilized,
+        sprinkler: false,
+        plant: { ...saved.plant },
+        variant: 0,
+        buildingId: null,
+        machineId: null,
+      }
+      const result = advancePlantTileNight(tile, s.season, dayEnded, night)
+      if (tile.plant !== null) saved.plant = { ...tile.plant }
+      grew += result.grew
+      ripened += result.ripened
+    }
+  }
 
   // ---- 2. the animals -----------------------------------------------------
   const barnyard = nightlyLivestock(s, rand)
@@ -691,13 +870,27 @@ export function sleep(state: GameState): { state: GameState; report: DayReport }
     for (const t of s.tiles) {
       const p = t.plant
       if (!p || p.dead) continue
+      const tree = treeById(p.cropId)
       const crop = cropById(p.cropId)
-      if (!crop || !crop.seasons.includes(s.season)) {
+      if (tree === undefined && (!crop || !crop.seasons.includes(s.season))) {
         t.plant = null
         outOfSeason += 1
       }
     }
+    if (estateFarming !== undefined) {
+      for (const tile of Object.values(estateFarming.plotTiles)) {
+        const plant = tile.plant
+        if (plant === null || plant.dead || treeById(plant.cropId) !== undefined) continue
+        const crop = cropById(plant.cropId)
+        if (!crop || !crop.seasons.includes(s.season)) {
+          tile.plant = null
+          outOfSeason += 1
+        }
+      }
+    }
   }
+
+  if (estateFarming !== undefined) estateFarming.lastGrowthDay = absoluteDay(s)
 
   // ---- 7. the market, on the new day --------------------------------------
   s = dailyRecovery(s)

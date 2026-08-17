@@ -3,6 +3,7 @@ import { cropById, cropsForSeason, produceValue, totalGrowDays } from './crops'
 import { productById, productValue } from './products'
 import { spaceCheck } from './storage'
 import { addItem, cloneState, countItem, itemKey, itemName, removeItem } from './state'
+import { treeById, treesForSeason, treeValue } from './trees'
 
 export interface ShopEntry {
   item: ItemRef
@@ -63,6 +64,15 @@ export function shopStock(state: GameState): ShopEntry[] {
     })
   }
 
+  for (const tree of treesForSeason(state.season)) {
+    entries.push({
+      item: { kind: 'seed', cropId: tree.id },
+      price: tree.seedCost,
+      stock: null,
+      note: `SAPLING - MATURES ${totalGrowDays(tree)}D - BEARS EVERY ${tree.regrowDays}D`,
+    })
+  }
+
   for (const goodId of GOOD_ORDER) {
     entries.push({
       item: { kind: 'good', goodId },
@@ -78,12 +88,13 @@ export function shopStock(state: GameState): ShopEntry[] {
 export function sellValue(item: ItemRef): number {
   switch (item.kind) {
     case 'seed': {
-      const crop = cropById(item.cropId)
-      return crop ? buyBack(crop.seedCost) : 0
+      const plant = cropById(item.cropId) ?? treeById(item.cropId)
+      return plant ? buyBack(plant.seedCost) : 0
     }
     case 'produce': {
       const crop = cropById(item.cropId)
-      return crop ? produceValue(crop, item.quality) : 0
+      const tree = treeById(item.cropId)
+      return crop ? produceValue(crop, item.quality) : tree ? treeValue(tree, item.quality) : 0
     }
     case 'good': {
       const price = GOOD_PRICE[item.goodId]

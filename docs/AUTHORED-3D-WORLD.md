@@ -35,6 +35,13 @@ commercial, and production landmarks. Every estate anchor adds a crop plot, orch
 building, production facility, fence, gate opening, and lantern. Remaining cells receive
 region-appropriate vegetation while preserving road and river clearances.
 
+The farm space at every estate anchor follows one shared authored layout. Local coordinates
+`x = 2..6`, `z = 9..12` form a 5-by-4 designated field, and local coordinates `(10, 11)`,
+`(12, 11)`, and `(14, 11)` form three orchard slots. Absolute farm coordinates are
+`worldX = cellX * 16 + localX` and `worldZ = cellZ * 16 + localZ`; their persistent key is
+`estate:<id>@<worldX>,<worldZ>`. Across all eight estates this yields exactly 160 field records
+and 24 possible orchard occupants.
+
 ## Typed content binding
 
 The default builder is bound to `VALLEY_CONTENT_REGISTRY`. Region-aware deterministic selection
@@ -47,6 +54,21 @@ All placement derives from the engine-provided cell descriptor seed plus stable 
 There is no `Math.random()`, wall-clock dependency, or frame-rate input. Rebuilding a descriptor
 with the same registry fingerprint and cell size produces the same content, transforms, names, and
 collider IDs.
+
+## Persistent estate farming
+
+The configurable world source receives the current validated `valley3d.estateFarming` snapshot
+through a read-only callback. Field tiles, plants, debris, empty orchard pads, and orchard trees are
+rebuilt from exact estate/world keys whenever their resident cell is composed or refreshed. Crop
+and tree appearance resolves through the canonical crop, tree, and valley content registries;
+meshes use bundled primitive geometry and local materials, with no runtime downloads.
+
+Authored farming meshes carry one of `estate-farm-tile`, `estate-farm-crop`,
+`estate-farm-debris`, `estate-orchard-slot`, or `estate-orchard-tree` plus the exact
+`estateFarmKey`. These values let the Farm tab climb a ray hit to its semantic owner without
+deriving farm identity from mesh order or presentation names. Presentation never mutates the save.
+The rules layer independently revalidates the key, estate, coordinates, and designated field or
+orchard slot before an action can change state.
 
 ## Rendering and collision
 
@@ -88,6 +110,7 @@ const lowPresetOptions = {
 ```
 
 The exported builder matches `ThreeWorldCellBuilder`, so the live Three Farm surface can select it
-through the existing `ThreeRuntimeOptions.buildCell` seam. The world source does not modify the
-Farm tab, create a runtime, own an animation loop, or read gameplay saves. The integration owner
-retains control over when the authored source becomes the live Farm selection.
+through the existing `ThreeRuntimeOptions.buildCell` seam. The world source does not mutate
+gameplay saves, modify the Farm tab, create a runtime, or own an animation loop. The integration
+owner supplies the read-only estate-farming snapshot, requests resident-cell refresh after an
+accepted action, and retains control over when the authored source is the live Farm selection.

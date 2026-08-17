@@ -28,6 +28,12 @@
  */
 
 import { CROPS } from '../../game/crops'
+import {
+  createDefaultEstateFarmingState,
+  estateFarmingDescription,
+  useEstatePlotTool,
+  useEstateTreeTool,
+} from '../../game/estate-farming'
 import { createState } from '../../game/state'
 import { formatClock } from '../../game/time'
 import type {
@@ -410,6 +416,14 @@ interface AuthoredStructureTarget {
   readonly distance: number
 }
 
+interface EstateFarmTarget {
+  readonly key: string
+  readonly kind: 'plot' | 'tree' | 'orchard-slot'
+  readonly label: string
+  readonly detail: string
+  readonly distance: number
+}
+
 type InteriorTarget =
   | { readonly kind: 'door'; readonly id: string; readonly label: string; readonly distance: number }
   | { readonly kind: 'connector'; readonly id: string; readonly label: string; readonly distance: number }
@@ -729,6 +743,7 @@ export function createFarmTab(): FarmTab {
   let currentNpcTarget: NpcInteractionTarget | null = null
   let currentFarmTarget: ResolvedGameplayTarget | null = null
   let currentFarmOverlay: GameplayOverlay | null = null
+  let currentEstateFarmTarget: EstateFarmTarget | null = null
   let currentStructureTarget: AuthoredStructureTarget | null = null
   let currentInteriorTarget: InteriorTarget | null = null
   let activeInterior: ActiveInterior | null = null
@@ -800,6 +815,8 @@ export function createFarmTab(): FarmTab {
       exterior,
       life: cloneLifeSimulationState(life),
       interior,
+      estateFarming: state.valley3d?.estateFarming
+        ?? createDefaultEstateFarmingState(state.seed, Math.floor(gameMinuteIndex(state) / (24 * 60))),
     }
     currentState = { ...state, valley3d }
   }
@@ -897,7 +914,10 @@ export function createFarmTab(): FarmTab {
     currentState = next
     syncLife(previous, next)
     const runtime = game.runtime
-    if (runtime !== null) syncEnvironment(runtime, next)
+    if (runtime !== null) {
+      syncEnvironment(runtime, next)
+      if (next.valley3d !== undefined) runtime.syncEstateFarming(next.valley3d.estateFarming)
+    }
     announceFeedback(message)
     if (previous !== next) requestAutosave()
   }
@@ -985,6 +1005,8 @@ export function createFarmTab(): FarmTab {
       exterior,
       life,
       interior: null,
+      estateFarming: saved?.estateFarming
+        ?? createDefaultEstateFarmingState(state.seed, Math.floor(gameMinuteIndex(state) / (24 * 60))),
     }
 
     const savedInterior = saved?.interior ?? null
@@ -1015,6 +1037,7 @@ export function createFarmTab(): FarmTab {
             exteriorPosition: vector(exterior.position),
             exteriorFacing: exterior.facingYaw,
           }
+          runtime.syncEstateFarming(sanitizedBase.estateFarming)
           runtime.setWorldVisible(false)
           runtime.setPlayerPose(shiftedPoint(savedInterior.position), exterior.facingYaw)
           const restoredState = { ...state, valley3d: { ...sanitizedBase, interior: savedInterior } }
@@ -1034,6 +1057,7 @@ export function createFarmTab(): FarmTab {
 
     runtime.setWorldVisible(true)
     runtime.setPlayerPose(exterior.position, exterior.facingYaw)
+    runtime.syncEstateFarming(sanitizedBase.estateFarming)
     const restoredState = { ...state, valley3d: sanitizedBase }
     currentState = restoredState
     return { state: restoredState, fellBack, restoredInterior: false }
@@ -1108,6 +1132,22 @@ export function createFarmTab(): FarmTab {
     }
   }
 
+  const executeEstateFarming = (runtime: ThreeRuntime, target: EstateFarmTarget): void => {
+    const state = currentState
+    if (state === null) return
+    if (target.distance > INTERACTION_DISTANCE) {
+      announceFeedback(`Move closer to ${target.label}.`)
+      return
+    }
+    const outcome = target.kind === 'plot'
+      ? useEstatePlotTool(state, target.key)
+      : useEstateTreeTool(state, target.key)
+    commitState(outcome.state, `${target.label}: ${outcome.message}`)
+    if (outcome.ok && outcome.state.valley3d !== undefined) {
+      runtime.syncEstateFarming(outcome.state.valley3d.estateFarming)
+    }
+  }
+
   const cycleTool = (runtime: ThreeRuntime): void => {
     const state = currentState
     if (state === null || activeInterior !== null) return
@@ -1127,6 +1167,10 @@ export function createFarmTab(): FarmTab {
     }
     if (currentStructureTarget !== null) {
       enterInterior(runtime, currentStructureTarget.binding)
+      return
+    }
+    if (currentEstateFarmTarget !== null) {
+      executeEstateFarming(runtime, currentEstateFarmTarget)
       return
     }
     const option = currentFarmOverlay?.options.find((candidate) => candidate.enabled)
@@ -1184,6 +1228,35 @@ export function createFarmTab(): FarmTab {
     }
   }
 
+  const estateFarmTargetFrom = (
+    hit: Intersection<Object3D>,
+    runtime: ThreeRuntime,
+    state: GameState,
+  ): EstateFarmTarget | null => {
+    const owner = semanticOwner(hit.object)
+    if (owner === null) return null
+    const data = owner.userData as Record<string, unknown>
+    if (
+      data.semantic !== 'estate-farm-tile'
+      && data.semantic !== 'estate-farm-crop'
+      && data.semantic !== 'estate-farm-debris'
+      && data.semantic !== 'estate-orchard-slot'
+      && data.semantic !== 'estate-orchard-tree'
+    ) {
+      return null
+    }
+    if (typeof data.estateFarmKey !== 'string' || state.valley3d === undefined) return null
+    const description = estateFarmingDescription(state.valley3d.estateFarming, data.estateFarmKey)
+    if (description === null) return null
+    return {
+      key: data.estateFarmKey,
+      kind: description.kind,
+      label: description.label,
+      detail: description.detail,
+      distance: runtime.playerPosition.distanceTo(hit.point),
+    }
+  }
+
   const updateTargets = (runtime: ThreeRuntime): void => {
     raycaster.setFromCamera(screenCentre, runtime.camera)
     const hits = raycaster
@@ -1206,6 +1279,7 @@ export function createFarmTab(): FarmTab {
     currentStructureTarget = null
     currentFarmTarget = null
     currentFarmOverlay = null
+    currentEstateFarmTarget = null
     const state = currentState
     if (state === null) return
 
@@ -1233,6 +1307,16 @@ export function createFarmTab(): FarmTab {
         break
       }
     }
+
+    for (const hit of hits) {
+      const target = estateFarmTargetFrom(hit, runtime, state)
+      if (target !== null) {
+        currentEstateFarmTarget = target
+        break
+      }
+    }
+
+    if (currentEstateFarmTarget !== null) return
 
     const ground = hits.find((hit) => hit.object.name.startsWith('terrain:'))
     currentFarmTarget = gameplay.resolveTarget(state, {
@@ -1287,6 +1371,29 @@ export function createFarmTab(): FarmTab {
         description: `Load and enter ${structure.binding.graph.rooms.length} detailed rooms.`,
         enabled: structure.distance <= INTERACTION_DISTANCE,
         run: () => enterInterior(runtime, structure.binding),
+      })
+    } else if (currentEstateFarmTarget !== null) {
+      const target = currentEstateFarmTarget
+      const state = currentState
+      const tool = state?.tool ?? 'hand'
+      const label = target.kind === 'orchard-slot' && tool === 'seeds'
+        ? `Plant selected sapling in ${target.label}`
+        : target.kind === 'tree' && tool === 'hand'
+          ? `Harvest or check ${target.label}`
+          : `${tool} — ${target.label}`
+      actions.push({
+        id: `estate:${target.key}:${tool}`,
+        label,
+        description: `${target.detail} Uses canonical ${tool} time, energy, inventory, quality, weather, and season rules.`,
+        enabled: state !== null && target.distance <= INTERACTION_DISTANCE,
+        run: () => executeEstateFarming(runtime, target),
+      })
+      actions.push({
+        id: 'next-tool',
+        label: 'Next tool (G / Y)',
+        description: 'Cycle to the next canonical farming tool.',
+        enabled: state !== null,
+        run: () => cycleTool(runtime),
       })
     } else {
       for (const option of currentFarmOverlay?.options ?? []) {
@@ -1352,6 +1459,10 @@ export function createFarmTab(): FarmTab {
       targetTitle.textContent = currentStructureTarget.binding.label
       prompt.textContent = `Enter building (E / A)`
       detail.textContent = `${currentStructureTarget.binding.graph.rooms.length} detailed rooms with doors, stations, a restroom, and hand washing.`
+    } else if (currentEstateFarmTarget !== null) {
+      targetTitle.textContent = currentEstateFarmTarget.label
+      prompt.textContent = `${state.tool} action (F, click, X, E, Enter, or A)`
+      detail.textContent = `${currentEstateFarmTarget.detail} Designated open-world estate farming; saved by estate and world coordinate.`
     } else {
       targetTitle.textContent = currentFarmOverlay?.title ?? 'Open valley'
       prompt.textContent = currentFarmOverlay?.prompt ?? 'Explore the authored valley.'

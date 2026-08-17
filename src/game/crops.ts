@@ -1,5 +1,6 @@
 import { QUALITY_MULTIPLIER } from './constants'
 import type { CropDef, Plant, Quality, Season } from './types'
+import { VALLEY_CROP_RULES } from './valley-plants'
 
 /**
  * The crop table — the 26 field crops of `docs/CATALOG.md` section 1, plus the seven
@@ -470,7 +471,13 @@ export const CROPS: readonly CropEntry[] = [
   },
 ]
 
-const BY_ID: ReadonlyMap<string, CropEntry> = new Map(CROPS.map((c) => [c.id, c]))
+/** Legacy crops remain first so existing saves and catalogue order never move. */
+export const ALL_CROP_RULES: readonly CropEntry[] = Object.freeze([
+  ...CROPS,
+  ...VALLEY_CROP_RULES,
+])
+
+const BY_ID: ReadonlyMap<string, CropEntry> = new Map(ALL_CROP_RULES.map((c) => [c.id, c]))
 
 export function cropById(id: string): CropEntry | undefined {
   return BY_ID.get(id)
@@ -484,7 +491,7 @@ export function requireCrop(id: string): CropEntry {
 }
 
 export function cropsForSeason(season: Season): CropEntry[] {
-  return CROPS.filter((c) => c.seasons.includes(season))
+  return ALL_CROP_RULES.filter((c) => c.seasons.includes(season))
 }
 
 export function totalGrowDays(crop: CropDef): number {

@@ -40,11 +40,13 @@ import {
 } from './environment'
 import {
   AUTHORED_VALLEY_CELL_SIZE,
-  buildAuthoredValleyWorldCell,
+  createAuthoredValleyWorldCellBuilder,
+  syncAuthoredEstateFarmingCell,
   ThreeWorldCellSource,
   type LoadedThreeWorldCell,
   type ThreeWorldCellBuilder,
 } from './world'
+import type { Valley3DEstateFarmingStateV1 } from '../game/types'
 
 const DEFAULT_ENVIRONMENT: EnvironmentSeedState = Object.freeze({
   minuteOfDay: 600,
@@ -244,6 +246,7 @@ export class ThreeRuntime {
   private playerFacing = Math.PI
   private worldVisible = true
   private requestedEnvironment: EnvironmentSeedState | null = null
+  private estateFarmingState: Valley3DEstateFarmingStateV1 | null = null
   private disposed = false
   private disposePromise: Promise<void> | undefined
 
@@ -375,6 +378,12 @@ export class ThreeRuntime {
     this.requestedEnvironment = Object.freeze({ ...state })
   }
 
+  /** Rebuilds only resident estate plot/tree presentation from the validated save snapshot. */
+  syncEstateFarming(state: Valley3DEstateFarmingStateV1): void {
+    this.estateFarmingState = state
+    for (const child of this.scene.children) syncAuthoredEstateFarmingCell(child, state)
+  }
+
   resize(width = this.options.canvas.clientWidth, height = this.options.canvas.clientHeight): void {
     const resolvedWidth = resolveDimension(width)
     const resolvedHeight = resolveDimension(height)
@@ -391,12 +400,15 @@ export class ThreeRuntime {
   }
 
   private createDefaultWorldSource(cellSize: number): WorldCellSource<LoadedThreeWorldCell> {
+    const buildCell = this.options.buildCell ?? createAuthoredValleyWorldCellBuilder({
+      estateFarming: () => this.estateFarmingState,
+    })
     return new ThreeWorldCellSource({
       scene: this.scene,
       collision: this.collision,
       assets: this.assets,
       cellSize,
-      buildCell: this.options.buildCell ?? buildAuthoredValleyWorldCell,
+      buildCell,
     })
   }
 

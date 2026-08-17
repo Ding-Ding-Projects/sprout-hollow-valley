@@ -10,6 +10,19 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+### Added
+
+- Persistent deterministic farming in every authored estate: each of the eight estate cells now
+  contains a 5-by-4 designated field and three orchard slots, rendered from bundled geometry and
+  addressed by stable estate and absolute-world-coordinate keys.
+- An additive `valley3d` version-one `estateFarming` record for all 160 field plots, occupied
+  orchard slots, and the last applied overnight growth day. Missing or malformed records receive
+  seeded defaults after exact layout, key, coordinate, count, plant-shape, and day validation.
+- Canonical field and orchard interactions from camera-center raycasts and the accessible Farm HUD.
+  Unknown keys and out-of-layout coordinates fail closed; accepted actions reuse the existing
+  crop, tree, inventory, time, energy, weather, season, yield, and quality rules while preserving
+  the inherited farm grid and refreshing the resident estate presentation.
+
 ## [1.2.9] - 2026-08-17
 
 Sprout Hollow Valley begins as an independent Windows-only third-person low-poly 3D farming

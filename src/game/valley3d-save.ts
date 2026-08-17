@@ -1,11 +1,23 @@
 import { createLifeSimulation } from '../life/state'
 import { cloneLifeSimulationState, readLifeSimulationState } from '../life/persistence'
 import type { LifeSimulationState } from '../life/types'
+import {
+  cloneEstateFarmingState,
+  createDefaultEstateFarmingState,
+  estateFarmKey,
+  isDesignatedEstateOrchardSlot,
+  isDesignatedEstatePlot,
+} from './estate-farm-state'
+import { cropById } from './crops'
+import { treeById } from './trees'
 import type {
   Facing,
   GameState,
   Player,
   Valley3DDoorAccessState,
+  Valley3DEstateFarmingStateV1,
+  Valley3DEstatePlotTileV1,
+  Valley3DEstateTreeV1,
   Valley3DExteriorState,
   Valley3DInteriorStateV1,
   Valley3DPose,
@@ -20,6 +32,8 @@ const MAX_ACCESS_ROWS = 4_096
 const MAX_USE_COUNTS = 4_096
 const MAX_COORDINATE = 1_000_000
 const MAX_COUNTER = Number.MAX_SAFE_INTEGER
+const MAX_ESTATE_PLOTS = 160
+const MAX_ESTATE_TREES = 24
 const TWO_PI = Math.PI * 2
 
 const SANITATION_STAGES = [
@@ -31,6 +45,19 @@ const SANITATION_STAGES = [
   'needs-drying',
   'complete',
 ] as const
+
+const ESTATE_IDS = [
+  'estate:meadow',
+  'estate:forest',
+  'estate:riverland',
+  'estate:mountain',
+  'estate:coastal',
+  'estate:marsh',
+  'estate:arid',
+  'estate:alpine',
+] as const
+
+const ESTATE_GROUNDS = ['grass', 'soil', 'weeds', 'rock', 'log'] as const
 
 export interface Valley3DReadContext {
   readonly seed: number
@@ -265,7 +292,105 @@ function readInterior(value: unknown): Valley3DInteriorStateV1 | null | undefine
   }
 }
 
+function readEstatePlant(value: unknown): Valley3DEstatePlotTileV1['plant'] | undefined {
+  if (value === null) return null
+  if (!isRecord(value)) return undefined
+  const cropId = id(value['cropId'])
+  const stage = integer(value['stage'], 0, 1_024)
+  const progress = integer(value['progress'], 0, 1_000_000)
+  const dry = integer(value['dry'], 0, 1_000_000)
+  const regrown = integer(value['regrown'], 0, 1_000_000)
+  if (
+    cropId === null || stage === null || progress === null || dry === null || regrown === null
+    || typeof value['dead'] !== 'boolean' || typeof value['fertilized'] !== 'boolean'
+  ) {
+    return undefined
+  }
+  return {
+    cropId,
+    stage,
+    progress,
+    dry,
+    dead: value['dead'],
+    fertilized: value['fertilized'],
+    regrown,
+  }
+}
+
+function readEstatePlot(value: unknown): Valley3DEstatePlotTileV1 | null {
+  if (!isRecord(value)) return null
+  const estateId = oneOf(value['estateId'], ESTATE_IDS)
+  const worldX = integer(value['worldX'], -MAX_COORDINATE, MAX_COORDINATE)
+  const worldZ = integer(value['worldZ'], -MAX_COORDINATE, MAX_COORDINATE)
+  const ground = oneOf(value['ground'], ESTATE_GROUNDS)
+  const variant = integer(value['variant'], 0, 255)
+  const plant = readEstatePlant(value['plant'])
+  if (
+    estateId === null || worldX === null || worldZ === null || ground === null || variant === null
+    || plant === undefined || typeof value['watered'] !== 'boolean'
+    || typeof value['fertilized'] !== 'boolean'
+    || !isDesignatedEstatePlot(estateId, worldX, worldZ)
+    || (plant !== null && (cropById(plant.cropId) === undefined || treeById(plant.cropId) !== undefined))
+  ) {
+    return null
+  }
+  return {
+    estateId,
+    worldX,
+    worldZ,
+    ground,
+    watered: value['watered'],
+    fertilized: value['fertilized'],
+    plant,
+    variant,
+  }
+}
+
+function readEstateTree(value: unknown): Valley3DEstateTreeV1 | null {
+  if (!isRecord(value)) return null
+  const estateId = oneOf(value['estateId'], ESTATE_IDS)
+  const worldX = integer(value['worldX'], -MAX_COORDINATE, MAX_COORDINATE)
+  const worldZ = integer(value['worldZ'], -MAX_COORDINATE, MAX_COORDINATE)
+  const plant = readEstatePlant(value['plant'])
+  if (
+    estateId === null || worldX === null || worldZ === null || plant === undefined || plant === null
+    || !isDesignatedEstateOrchardSlot(estateId, worldX, worldZ)
+    || treeById(plant.cropId) === undefined
+  ) {
+    return null
+  }
+  return { estateId, worldX, worldZ, plant }
+}
+
+function readEstateFarming(
+  value: unknown,
+  context: Valley3DReadContext,
+): Valley3DEstateFarmingStateV1 {
+  const absoluteDay = Math.floor(gameMinuteIndex(context) / (24 * 60))
+  const fallback = (): Valley3DEstateFarmingStateV1 =>
+    createDefaultEstateFarmingState(context.seed, absoluteDay)
+  if (!isRecord(value) || !isRecord(value['plotTiles']) || !isRecord(value['trees'])) return fallback()
+  const plotKeys = Object.keys(value['plotTiles']).sort()
+  const treeKeys = Object.keys(value['trees']).sort()
+  if (plotKeys.length !== MAX_ESTATE_PLOTS || treeKeys.length > MAX_ESTATE_TREES) return fallback()
+  const plotTiles: Record<string, Valley3DEstatePlotTileV1> = {}
+  const trees: Record<string, Valley3DEstateTreeV1> = {}
+  for (const key of plotKeys) {
+    const plot = readEstatePlot(value['plotTiles'][key])
+    if (plot === null || key !== estateFarmKey(plot.estateId, plot.worldX, plot.worldZ)) return fallback()
+    plotTiles[key] = plot
+  }
+  for (const key of treeKeys) {
+    const tree = readEstateTree(value['trees'][key])
+    if (tree === null || key !== estateFarmKey(tree.estateId, tree.worldX, tree.worldZ)) return fallback()
+    trees[key] = tree
+  }
+  const lastGrowthDay = integer(value['lastGrowthDay'], 0, absoluteDay)
+  return lastGrowthDay === null ? fallback() : { plotTiles, trees, lastGrowthDay }
+}
+
 export function createDefaultValley3DSave(context: Valley3DReadContext): Valley3DSaveV1 {
+  const absoluteDay = Math.floor(gameMinuteIndex(context) / (24 * 60))
   return {
     version: VALLEY3D_SAVE_VERSION,
     exterior: {
@@ -276,6 +401,7 @@ export function createDefaultValley3DSave(context: Valley3DReadContext): Valley3
     },
     life: createLifeSimulation(context.seed),
     interior: null,
+    estateFarming: createDefaultEstateFarmingState(context.seed, absoluteDay),
   }
 }
 
@@ -300,6 +426,7 @@ export function readValley3DSave(
     exterior,
     life,
     interior,
+    estateFarming: readEstateFarming(value['estateFarming'], context),
   }
 }
 
@@ -313,6 +440,7 @@ export function cloneValley3DSave(state: Valley3DSaveV1): Valley3DSaveV1 {
       estateId: state.exterior.estateId,
     },
     life: cloneLifeSimulationState(state.life),
+    estateFarming: cloneEstateFarmingState(state.estateFarming),
     interior: state.interior === null
       ? null
       : {

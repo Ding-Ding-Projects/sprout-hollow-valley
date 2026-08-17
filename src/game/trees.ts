@@ -1,6 +1,7 @@
 import { QUALITY_MULTIPLIER } from './constants'
 import { randInt } from './rng'
 import type { CropDef, Plant, Quality, Season } from './types'
+import { VALLEY_TREE_RULES } from './valley-plants'
 
 /**
  * Trees and bushes — the 14 perennials of `docs/CATALOG.md` section 2.
@@ -254,7 +255,13 @@ export const TREES: readonly TreeDef[] = [
   },
 ]
 
-const BY_ID: ReadonlyMap<string, TreeDef> = new Map(TREES.map((t) => [t.id, t]))
+/** Legacy perennials remain first while the 250 authored orchard entries use the same rules. */
+export const ALL_TREE_RULES: readonly TreeDef[] = Object.freeze([
+  ...TREES,
+  ...VALLEY_TREE_RULES,
+])
+
+const BY_ID: ReadonlyMap<string, TreeDef> = new Map(ALL_TREE_RULES.map((t) => [t.id, t]))
 
 /** Extra fruit an old tree bears, one per this many harvests, capped by MATURITY_CAP. */
 const MATURITY_STEP = 6
@@ -273,7 +280,7 @@ export function requireTree(id: string): TreeDef {
 
 /** Trees that bear fruit in this season. Out of season they still stand on the tile. */
 export function treesForSeason(season: Season): TreeDef[] {
-  return TREES.filter((t) => t.seasons.includes(season))
+  return ALL_TREE_RULES.filter((t) => t.seasons.includes(season))
 }
 
 export function treeFruitsIn(tree: TreeDef, season: Season): boolean {

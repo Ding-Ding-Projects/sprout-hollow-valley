@@ -38,11 +38,11 @@
  */
 
 import { DAYS_PER_SEASON, QUALITY_MULTIPLIER, SEASONS } from './constants'
-import { CROPS, cropById } from './crops'
+import { ALL_CROP_RULES, cropById } from './crops'
 import { MATERIAL_VALUE, PRODUCTS, productById } from './products'
 import { rngFor } from './rng'
 import { seasonIndex } from './time'
-import { TREES, treeById } from './trees'
+import { ALL_TREE_RULES, treeById } from './trees'
 import type { GoodEconomics, Market, MarketEvent, MaterialId, PricePoint } from './farm-types'
 import type { CropDef, GameState, GoodId, ItemRef, Quality, Season } from './types'
 
@@ -490,8 +490,8 @@ const SHORTAGE_MAX_LEVEL = 40
  */
 const ALL_PLANT_IDS: readonly string[] = (() => {
   const ids = new Set<string>()
-  for (const crop of CROPS) ids.add(crop.id)
-  for (const tree of TREES) ids.add(tree.id)
+  for (const crop of ALL_CROP_RULES) ids.add(crop.id)
+  for (const tree of ALL_TREE_RULES) ids.add(tree.id)
   return Array.from(ids).sort()
 })()
 
@@ -611,7 +611,7 @@ export function caravanSeed(state: GameState): string | null {
   const event = state.market.event
   if (!event || event.kind !== 'caravan' || !eventIsActive(event, day)) return null
   const season = seasonOfDay(day)
-  const sowable = CROPS.map((crop) => crop.id)
+  const sowable = ALL_CROP_RULES.map((crop) => crop.id)
   const offSeason = sowable.filter((id) => !cropById(id)?.seasons.includes(season))
   const rand = rngFor(state.seed, `market:caravan:${weekOf(day)}`)
   const fallback: string | null = sowable.length > 0 ? sowable[0] : null

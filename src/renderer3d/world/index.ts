@@ -20,6 +20,7 @@ export {
   authoredValleyLocationAt,
   buildAuthoredValleyWorldCell,
   createAuthoredValleyWorldCellBuilder,
+  syncAuthoredEstateFarmingCell,
 } from './authored-valley-world'
 export type {
   AuthoredEstateZone,

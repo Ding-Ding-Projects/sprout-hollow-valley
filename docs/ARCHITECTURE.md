@@ -128,6 +128,38 @@ Rules every verb obeys:
 - Harvest yields `yieldMin..yieldMax` at a quality rolled from fertilizer and luck; a crop
   with `regrowDays` returns to the stage that re-ripens instead of clearing the tile.
 
+### Open-world estate farming bridge
+
+`src/game/estate-farm-state.ts` owns the eight canonical layouts: a 5-by-4 field and three orchard
+slots per estate. `estateWorldCoordinate()` converts each layout-local coordinate to the absolute
+world tile, and `estateFarmKey()` produces the stable
+`estate:<id>@<worldX>,<worldZ>` persistence and interaction key.
+
+`src/game/estate-farming.ts` exposes the narrow rules bridge:
+
+```ts
+export function useEstatePlotTool(state: GameState, key: string, tool?: ToolId): ActionResult
+export function plantEstateTree(state: GameState, key: string): ActionResult
+export function useEstateTreeTool(state: GameState, key: string, tool?: ToolId): ActionResult
+export function estateFarmingDescription(
+  state: Valley3DEstateFarmingStateV1,
+  key: string,
+): Readonly<{ kind: 'plot' | 'tree' | 'orchard-slot'; label: string; detail: string }> | null
+```
+
+Every call revalidates the exact key and designated layout. Plot actions project only the target's
+nearby estate tiles into a temporary canonical farm window, call the existing till, water, sow,
+harvest, clear, grass-cut, or fertilize rule, and copy only the resulting estate records back.
+Orchard actions call the canonical sapling sow, tree harvest, and tree felling rules. The returned
+state retains canonical time, energy, inventory, yield, quality, weather, and season effects while
+restoring the inherited farm grid, player coordinate, and seed. Unsupported plot sprinklers and
+inapplicable orchard tools return a denial with unchanged state.
+
+The canonical overnight pass advances estate plots and orchard trees beside the inherited farm.
+Rain and storms water field soil, snow does not; growth, fertilizer, drying, withering, ripening,
+regrowth, and season-turn crop removal reuse the same functions and contribute to the same morning
+report. Orchard trees remain perennial, and `lastGrowthDay` records the applied absolute day.
+
 ## src/game/shop.ts
 
 ```ts
@@ -165,7 +197,16 @@ The JSON-safe v1 section contains:
 - `interior`: either `null` or the active structure content ID, interior graph ID, room ID, floor,
   local position, exterior return pose, resolved door-access steps, current station or fixture use,
   sanitation stage and completion, and the interior runtime's serial, tick, use counts, and
-  revision.
+  revision; and
+- `estateFarming`: all 160 designated plot records keyed by exact estate and absolute world
+  coordinate, occupied orchard slots (up to 24), and `lastGrowthDay`.
+
+`estateFarming` was added without changing the outer version. An older save with no field receives
+deterministic defaults derived from the canonical save seed and current absolute day. Restore
+requires every designated plot exactly once, permits trees only in the three marked slots per
+estate, caps record counts, validates key/record agreement and the logical plant shape, and refuses
+a growth day later than the save date. Any invalid estate-farming payload is replaced with the
+same defaults without changing the inherited farm state.
 
 Meshes, materials, colliders, renderer objects, input state, and transient presentation events are
 not serialized. The Farm tab captures the logical v1 snapshot after canonical mutations and before

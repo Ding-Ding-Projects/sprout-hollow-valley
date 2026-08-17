@@ -235,6 +235,7 @@ export interface GameplayRuleBindings {
   /** Canonical tree actions are injected here; the adapter never recreates their rules. */
   readonly sowTree?: (state: GameState, index: number, treeId: string) => ActionResult
   readonly harvestTree?: (state: GameState, index: number) => ActionResult
+  readonly fellTree?: (state: GameState, index: number) => ActionResult
 }
 
 export interface FarmingGameplayAdapterOptions {

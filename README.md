@@ -29,6 +29,12 @@ deterministic farming and economy foundations while moving play into a third-per
 with authored terrain, bundled assets, enterable interiors, persistent residents, and
 recoverable consequences.
 
+Each authored estate now has a persistent 5-by-4 designated field (20 plots) and three marked
+orchard slots. Plot and tree records use stable `estate:<id>@<worldX>,<worldZ>` keys, so the same
+seed, estate, and absolute world coordinate resolve the same farm space after cell streaming or
+save restore. The eight estates therefore expose 160 field plots and 24 orchard slots without
+changing the inherited farm grid.
+
 The complete-release baseline is **at least 5,000 unique non-NPC content definitions**. The
 category counts in [PLAN.md](PLAN.md#world-farming-and-content) are:
 
@@ -71,6 +77,21 @@ HUD and the same commands are available through its focusable buttons.
 | Jump | `Space` | B |
 | Recenter / change shoulder / zoom | `R` / `Q` / wheel or `+` and `-` | Right-stick press / right bumper / D-pad |
 
+Camera-center raycasts recognize only the authored estate farming semantics and exact save-backed
+estate/world key. The HUD reports the targeted plot, crop, debris, empty orchard slot, or tree;
+shows the current canonical tool action; enforces the same distance gate for pointer, keyboard,
+gamepad, and focusable controls; and mirrors outcomes to the live feedback region. Missing,
+malformed, stale, or non-designated keys do not become interactive targets. Successful actions
+refresh the resident authored cell immediately.
+
+Estate field plots support hoeing, watering, sowing, harvesting, clearing or grass cutting, and
+fertilizing through the existing deterministic action modules. Open-world sprinklers refuse with
+an explanation. Marked orchard slots accept a selected canonical sapling; established trees use
+the canonical hand harvest and axe felling rules, while watering and field fertilizer fail closed
+with their tree-care explanation. These transactions retain the canonical time, energy,
+inventory, yield, quality, season, and weather rules and preserve the inherited farm's tiles,
+player coordinate, and seed.
+
 Authored building and factory doors map deterministically onto the complete 400 factory and 300
 building interior graphs. Inside, visible doors and vertical connectors traverse real rooms;
 stations and fixtures execute their typed interaction contracts; and the persistent HUD exposes
@@ -82,9 +103,10 @@ the canonical save without replacing the active Farm tab.
 
 `GameState` carries an optional, versioned `valley3d` section. Version 1 preserves the exact
 `LifeSimulationState` for all 240 residents and event progress; the exterior player pose, authored
-region, and estate; and, while inside a structure, its content and graph IDs, current room and
-floor, position, exterior return pose, resolved door access, active station or fixture use, and
-sanitation progress.
+region, and estate; all 160 designated estate plot records, occupied orchard slots, and the last
+applied overnight growth day; and, while inside a structure, its content and graph IDs, current
+room and floor, position, exterior return pose, resolved door access, active station or fixture
+use, and sanitation progress.
 
 The section remains optional so saves written before the live 3D composition can still load.
 Missing, malformed, or unsupported `valley3d` data migrates to deterministic defaults without
@@ -93,6 +115,14 @@ mutations, autosaves, explicit saves, pause, and disposal. Restore revalidates e
 if a region, estate, structure, graph, room, door, station, or fixture no longer exists, the
 corresponding 3D location or interaction is not activated and recovery uses the safe deterministic
 exterior state.
+
+`valley3d.estateFarming` is an additive version-one field. A save written before it existed receives
+seeded plot defaults for all eight estate layouts at the current absolute day. Restore requires the
+exact 160 designated plot keys, accepts at most the 24 designated occupied orchard keys, validates
+their estate/world coordinates and logical plant shape, and rejects a growth day from the future.
+Malformed estate-farming data falls back to those deterministic defaults without overwriting the
+inherited farm. Nightly growth then uses the same rain, storm, snow, watering, fertilizer,
+withering, regrowth, and season-turn rules as the canonical grid; orchard trees remain perennial.
 
 ## Independent product identity
 

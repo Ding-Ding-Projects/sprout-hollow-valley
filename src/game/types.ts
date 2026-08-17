@@ -149,6 +149,45 @@ export interface Valley3DDoorAccessState {
   stepIds: string[]
 }
 
+export type Valley3DEstateId =
+  | 'estate:meadow'
+  | 'estate:forest'
+  | 'estate:riverland'
+  | 'estate:mountain'
+  | 'estate:coastal'
+  | 'estate:marsh'
+  | 'estate:arid'
+  | 'estate:alpine'
+
+/** One designated open-world farm tile, keyed by its estate and absolute world tile. */
+export interface Valley3DEstatePlotTileV1 {
+  estateId: Valley3DEstateId
+  worldX: number
+  worldZ: number
+  ground: Extract<Ground, 'grass' | 'soil' | 'weeds' | 'rock' | 'log'>
+  watered: boolean
+  fertilized: boolean
+  plant: Plant | null
+  variant: number
+}
+
+/** One perennial in a designated authored orchard slot. */
+export interface Valley3DEstateTreeV1 {
+  estateId: Valley3DEstateId
+  worldX: number
+  worldZ: number
+  plant: Plant
+}
+
+export interface Valley3DEstateFarmingStateV1 {
+  /** Exact `estate:<id>@<worldX>,<worldZ>` keys; all designated field tiles are present. */
+  plotTiles: Record<string, Valley3DEstatePlotTileV1>
+  /** Exact keys for occupied orchard slots; an absent designated key is an empty slot. */
+  trees: Record<string, Valley3DEstateTreeV1>
+  /** Absolute game day whose overnight crop/tree pass was most recently applied. */
+  lastGrowthDay: number
+}
+
 /**
  * Persistent interior state contains logical progress only. Presentation objects, meshes,
  * colliders, and transient runtime events are rebuilt from the authored graph on restore.
@@ -179,6 +218,8 @@ export interface Valley3DSaveV1 {
   exterior: Valley3DExteriorState
   life: LifeSimulationState
   interior: Valley3DInteriorStateV1 | null
+  /** Added without changing v1: old saves deterministically receive all eight estate plots. */
+  estateFarming: Valley3DEstateFarmingStateV1
 }
 
 export interface GameState {

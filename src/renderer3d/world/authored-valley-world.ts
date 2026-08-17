@@ -4,15 +4,15 @@ import {
   CylinderGeometry,
   DodecahedronGeometry,
   Group,
-  InstancedMesh,
-  Matrix4,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
   PointLight,
   SphereGeometry,
   type BufferGeometry,
+  type ColorRepresentation,
   type Material,
+  type Object3D,
 } from 'three'
 import { VALLEY_CONTENT_REGISTRY } from '../../content/registry'
 import type {
@@ -24,6 +24,14 @@ import type {
   OrchardPlantDef,
 } from '../../content/types'
 import type { StaticCollider } from '../../engine3d'
+import {
+  ESTATE_FARM_LAYOUTS,
+  estateFarmKey,
+  estateWorldCoordinate,
+} from '../../game/estate-farm-state'
+import { cropById } from '../../game/crops'
+import { treeById } from '../../game/trees'
+import type { Valley3DEstateFarmingStateV1 } from '../../game/types'
 import type {
   ThreeWorldCellBuildContext,
   ThreeWorldCellBuilder,
@@ -86,6 +94,8 @@ export interface AuthoredValleyWorldCellBuilderOptions {
   readonly pointLights?: boolean
   /** Terrain subdivisions per streamed cell. Higher values produce smoother authored slopes. */
   readonly terrainSegments?: number
+  /** Mutable save snapshot source read only when an authored estate cell is composed. */
+  readonly estateFarming?: () => Valley3DEstateFarmingStateV1 | null
 }
 
 interface AuthoredRoute {
@@ -734,61 +744,184 @@ function addTree(
   )
 }
 
-function addCropPatch(
+const ESTATE_FARM_SYNC_KEY = 'estateFarmSync'
+const ESTATE_FARM_DISPOSE_KEY = 'estateFarmDispose'
+
+function estateGroundColor(
+  ground: Valley3DEstateFarmingStateV1['plotTiles'][string]['ground'] | undefined,
+  region: AuthoredValleyRegion,
+  watered: boolean,
+  fertilized: boolean,
+): number {
+  if (ground === 'soil') {
+    if (watered) return fertilized ? 0x3f342c : 0x51443a
+    return fertilized ? 0x58402c : region.soilColor
+  }
+  if (ground === 'rock') return 0x747b76
+  if (ground === 'log') return 0x6a4931
+  if (ground === 'weeds') return 0x4f7b3d
+  return region.terrainColor
+}
+
+function addEstateFarmingPresentation(
   root: Group,
-  resources: CellResources,
   context: ThreeWorldCellBuildContext,
   region: AuthoredValleyRegion,
-  crops: readonly [CropDef, CropDef],
+  estate: AuthoredEstateZone,
+  initial: Valley3DEstateFarmingStateV1 | null,
 ): void {
+  const layout = ESTATE_FARM_LAYOUTS.find((candidate) => candidate.estateId === estate.id)
+  if (layout === undefined) return
+  const presentation = new Group()
+  presentation.name = `estate-farming-state:${estate.id}`
+  root.add(presentation)
+
+  let geometries: BufferGeometry[] = []
+  let materials: Material[] = []
+  const disposeDynamic = (): void => {
+    presentation.clear()
+    for (const geometry of geometries) geometry.dispose()
+    for (const material of materials) material.dispose()
+    geometries = []
+    materials = []
+  }
+  const geometry = <T extends BufferGeometry>(value: T): T => {
+    geometries.push(value)
+    return value
+  }
+  const material = (color: ColorRepresentation): MeshStandardMaterial => {
+    const value = new MeshStandardMaterial({ color, roughness: 0.9, flatShading: true })
+    materials.push(value)
+    return value
+  }
   const centreX = (context.descriptor.coordinate.x + 0.5) * context.cellSize
   const centreZ = (context.descriptor.coordinate.z + 0.5) * context.cellSize
-  const patchX = -context.cellSize * 0.22
-  const patchZ = context.cellSize * 0.22
-  const patchWidth = context.cellSize * 0.34
-  const patchDepth = context.cellSize * 0.25
-  const groundY = terrainHeightAt(centreX + patchX, centreZ + patchZ, context.cellSize)
-  const soil = new Mesh(
-    ownGeometry(resources, new BoxGeometry(patchWidth, 0.09, patchDepth)),
-    createMaterial(resources, region.soilColor),
-  )
-  soil.name = `estate-crop-soil:${crops[0].id}:${crops[1].id}`
-  soil.position.set(patchX, groundY + 0.025, patchZ)
-  soil.receiveShadow = true
-  root.add(soil)
 
-  const columns = 5
-  const rows = 4
-  const plantsPerCrop = (columns * rows) / 2
-  const geometry = ownGeometry(resources, new ConeGeometry(0.12, 0.48, 5))
-  const cropMeshes = crops.map((crop, cropIndex) => {
-    const material = createMaterial(
-      resources,
-      cropIndex === 0 ? region.cropColor : region.foliageColor,
-    )
-    const instances = new InstancedMesh(geometry, material, plantsPerCrop)
-    instances.name = `crop-row:${crop.id}`
-    instances.castShadow = true
-    instances.receiveShadow = true
-    return instances
-  })
-  const matrix = new Matrix4()
-  const counters = [0, 0]
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      const cropIndex = (row + column) % 2
-      const localX = patchX - patchWidth * 0.38 + (column / (columns - 1)) * patchWidth * 0.76
-      const localZ = patchZ - patchDepth * 0.34 + (row / (rows - 1)) * patchDepth * 0.68
-      const y = terrainHeightAt(centreX + localX, centreZ + localZ, context.cellSize) + 0.27
-      matrix.makeTranslation(localX, y, localZ)
-      cropMeshes[cropIndex]!.setMatrixAt(counters[cropIndex]!, matrix)
-      counters[cropIndex]! += 1
+  const sync = (state: Valley3DEstateFarmingStateV1 | null): void => {
+    disposeDynamic()
+    for (let localZ = layout.field.minLocalZ; localZ <= layout.field.maxLocalZ; localZ += 1) {
+      for (let localX = layout.field.minLocalX; localX <= layout.field.maxLocalX; localX += 1) {
+        const { worldX, worldZ } = estateWorldCoordinate(layout, localX, localZ)
+        const key = estateFarmKey(layout.estateId, worldX, worldZ)
+        const saved = state?.plotTiles[key]
+        const worldCentreX = worldX + 0.5
+        const worldCentreZ = worldZ + 0.5
+        const localCentreX = worldCentreX - centreX
+        const localCentreZ = worldCentreZ - centreZ
+        const groundY = terrainHeightAt(worldCentreX, worldCentreZ, context.cellSize)
+        const tile = new Mesh(
+          geometry(new BoxGeometry(0.94, 0.08, 0.94)),
+          material(estateGroundColor(saved?.ground, region, saved?.watered === true, saved?.fertilized === true)),
+        )
+        tile.name = `estate-plot:${key}`
+        tile.position.set(localCentreX, groundY + 0.035, localCentreZ)
+        tile.receiveShadow = true
+        tile.userData = {
+          semantic: 'estate-farm-tile',
+          estateFarmKey: key,
+          estateId: layout.estateId,
+          worldX,
+          worldZ,
+          farmable: true,
+          label: saved?.plant?.cropId ?? `${saved?.ground ?? 'grass'} estate plot`,
+        }
+        presentation.add(tile)
+
+        if (saved?.plant !== null && saved?.plant !== undefined) {
+          const crop = cropById(saved.plant.cropId)
+          const height = crop === undefined
+            ? 0.18
+            : Math.max(0.16, (saved.plant.stage + 1) / (crop.stageDays.length + 1) * 0.9)
+          const plant = new Mesh(
+            geometry(new ConeGeometry(0.16 + height * 0.08, height, 6)),
+            material(saved.plant.dead ? 0x756c55 : (crop?.art.fruit ?? region.cropColor)),
+          )
+          plant.name = `estate-crop:${saved.plant.cropId}:${key}`
+          plant.position.set(localCentreX, groundY + 0.08 + height / 2, localCentreZ)
+          plant.castShadow = true
+          plant.userData = { ...tile.userData, semantic: 'estate-farm-crop', label: crop?.name ?? saved.plant.cropId }
+          presentation.add(plant)
+        } else if (saved?.ground === 'weeds' || saved?.ground === 'rock' || saved?.ground === 'log') {
+          const debris = new Mesh(
+            saved.ground === 'rock'
+              ? geometry(new DodecahedronGeometry(0.24, 0))
+              : geometry(new BoxGeometry(saved.ground === 'log' ? 0.58 : 0.3, 0.24, 0.24)),
+            material(saved.ground === 'rock' ? 0x757c79 : saved.ground === 'log' ? 0x6a4931 : 0x3f6f35),
+          )
+          debris.name = `estate-debris:${saved.ground}:${key}`
+          debris.position.set(localCentreX, groundY + 0.16, localCentreZ)
+          debris.castShadow = true
+          debris.userData = { ...tile.userData, semantic: 'estate-farm-debris', label: saved.ground }
+          presentation.add(debris)
+        }
+      }
+    }
+
+    for (const slot of layout.orchardSlots) {
+      const { worldX, worldZ } = estateWorldCoordinate(layout, slot.localX, slot.localZ)
+      const key = estateFarmKey(layout.estateId, worldX, worldZ)
+      const saved = state?.trees[key]
+      const localCentreX = worldX + 0.5 - centreX
+      const localCentreZ = worldZ + 0.5 - centreZ
+      const groundY = terrainHeightAt(worldX + 0.5, worldZ + 0.5, context.cellSize)
+      const pad = new Mesh(
+        geometry(new CylinderGeometry(0.43, 0.43, 0.07, 12)),
+        material(saved === undefined ? 0x92734d : region.soilColor),
+      )
+      pad.name = `estate-orchard-slot:${key}`
+      pad.position.set(localCentreX, groundY + 0.035, localCentreZ)
+      pad.receiveShadow = true
+      pad.userData = {
+        semantic: 'estate-orchard-slot',
+        estateFarmKey: key,
+        estateId: layout.estateId,
+        worldX,
+        worldZ,
+        farmable: true,
+        label: saved?.plant.cropId ?? 'Empty orchard slot',
+      }
+      presentation.add(pad)
+      if (saved === undefined) continue
+      const definition = treeById(saved.plant.cropId)
+      const maturity = definition === undefined
+        ? 0.35
+        : Math.max(0.25, Math.min(1, (saved.plant.stage + 1) / (definition.stageDays.length + 1)))
+      const tree = new Group()
+      tree.name = `estate-orchard-tree:${saved.plant.cropId}:${key}`
+      tree.position.set(localCentreX, groundY + 0.07, localCentreZ)
+      tree.userData = { ...pad.userData, semantic: 'estate-orchard-tree', label: definition?.name ?? saved.plant.cropId }
+      const trunkHeight = 0.55 + maturity * 0.85
+      const trunk = new Mesh(
+        geometry(new CylinderGeometry(0.1, 0.15, trunkHeight, 7)),
+        material(definition?.art.stem ?? 0x69462e),
+      )
+      trunk.position.y = trunkHeight / 2
+      trunk.castShadow = true
+      const canopy = new Mesh(
+        geometry(new DodecahedronGeometry(0.35 + maturity * 0.4, 0)),
+        material(saved.plant.dead ? 0x716b58 : (definition?.art.leaf ?? region.foliageColor)),
+      )
+      canopy.position.y = trunkHeight + 0.26
+      canopy.castShadow = true
+      tree.add(trunk, canopy)
+      presentation.add(tree)
     }
   }
-  for (const instances of cropMeshes) {
-    instances.instanceMatrix.needsUpdate = true
-    root.add(instances)
-  }
+
+  root.userData[ESTATE_FARM_SYNC_KEY] = sync
+  root.userData[ESTATE_FARM_DISPOSE_KEY] = disposeDynamic
+  sync(initial)
+}
+
+/** Refreshes a resident authored cell after a save-backed estate action. */
+export function syncAuthoredEstateFarmingCell(
+  root: Object3D,
+  state: Valley3DEstateFarmingStateV1,
+): boolean {
+  const sync = root.userData[ESTATE_FARM_SYNC_KEY]
+  if (typeof sync !== 'function') return false
+  ;(sync as (value: Valley3DEstateFarmingStateV1) => void)(state)
+  return true
 }
 
 function addBuilding(
@@ -1080,6 +1213,7 @@ function addEstateFarm(
   estate: AuthoredEstateZone,
   content: RegionContent,
   pointLights: boolean,
+  estateFarming: Valley3DEstateFarmingStateV1 | null,
 ): void {
   const seed = mixSeed(context.descriptor.seed, estate.id)
   const agricultural = content.buildings.filter((definition) => definition.buildingType === 'agricultural')
@@ -1104,7 +1238,7 @@ function addEstateFarm(
     factoryId: factory.id,
   })
 
-  addCropPatch(root, resources, context, region, [firstCrop, secondCrop])
+  addEstateFarmingPresentation(root, context, region, estate, estateFarming)
   addBuilding(
     root,
     resources,
@@ -1127,21 +1261,6 @@ function addEstateFarm(
     -context.cellSize * 0.2,
     'estate-factory',
   )
-  for (let index = 0; index < 3; index += 1) {
-    addTree(
-      root,
-      resources,
-      colliders,
-      context,
-      region,
-      orchard,
-      context.cellSize * (0.16 + index * 0.11),
-      context.cellSize * 0.23,
-      100 + index,
-      0.82 + index * 0.06,
-    )
-  }
-
   const fenceMaterial = createMaterial(resources, 0x725439)
   const fenceWidth = context.cellSize * 0.44
   const fenceDepth = context.cellSize * 0.36
@@ -1309,6 +1428,7 @@ function buildAuthoredCell(
   regionContent: ReadonlyMap<AuthoredValleyRegionId, RegionContent>,
   pointLights: boolean,
   terrainSegments: number,
+  estateFarming: () => Valley3DEstateFarmingStateV1 | null,
 ): ThreeWorldCellContent {
   if (context.signal.aborted) {
     const error = new Error('Authored Valley cell load was aborted')
@@ -1392,7 +1512,17 @@ function buildAuthoredCell(
   const estate = estateForCell(logicalPoint)
   addScatteredVegetation(root, resources, colliders, context, region, content, estate !== undefined)
   if (estate) {
-    addEstateFarm(root, resources, colliders, context, region, estate, content, pointLights)
+    addEstateFarm(
+      root,
+      resources,
+      colliders,
+      context,
+      region,
+      estate,
+      content,
+      pointLights,
+      estateFarming(),
+    )
   }
   addDistrictStructures(root, resources, colliders, context, region, content, pointLights)
 
@@ -1416,6 +1546,8 @@ function buildAuthoredCell(
     root,
     colliders: Object.freeze(colliders),
     dispose: () => {
+      const disposeEstate = root.userData[ESTATE_FARM_DISPOSE_KEY]
+      if (typeof disposeEstate === 'function') (disposeEstate as () => void)()
       for (const geometry of resources.geometries) geometry.dispose()
       for (const material of resources.materials) material.dispose()
     },
@@ -1435,6 +1567,7 @@ export function createAuthoredValleyWorldCellBuilder(
   const regionContent = indexRegionContent(registry)
   const pointLights = options.pointLights ?? true
   const terrainSegments = options.terrainSegments ?? DEFAULT_TERRAIN_SEGMENTS
+  const estateFarming = options.estateFarming ?? (() => null)
   if (!Number.isInteger(terrainSegments) || terrainSegments < 1 || terrainSegments > 64) {
     throw new RangeError('terrainSegments must be an integer from 1 through 64')
   }
@@ -1444,6 +1577,7 @@ export function createAuthoredValleyWorldCellBuilder(
     regionContent,
     pointLights,
     terrainSegments,
+    estateFarming,
   )
 }
 

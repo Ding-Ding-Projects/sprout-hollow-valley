@@ -18,6 +18,10 @@ catalogue is implemented.
 
 ### Added
 
+- A selectable authored Three.js valley world-cell source with globally continuous low-poly
+  terrain, connected cross-cell roads and water, eight named estate zones, registry-backed crops,
+  orchards, farms, factories, buildings, lanterns, deterministic seeded placement, stable
+  collision, finite natural boundaries, and no runtime asset downloads.
 - A farm-themed Material 3 direction for the Windows shell and responsive website, including
   semantic colour, typography, shape, elevation, interaction-state, motion, focus, target-size,
   contrast, and responsive-layout rules.

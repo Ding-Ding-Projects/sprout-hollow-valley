@@ -1,15 +1,13 @@
 name: Release
 
-# Three ways in, one behaviour:
-#   - push to main      CI that does not produce a downloadable build is not much use
-#   - workflow_dispatch one click, no inputs required
-#   - a v* tag          the explicit, versioned route
+# Two explicit ways in, one create-once behaviour:
+#   - a v* tag whose name exactly matches package.json
+#   - workflow_dispatch for a manifest version with no existing tag or release
 #
 # Windows only, Squirrel.Windows, and permanently unsigned. The notes say so.
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -25,6 +23,100 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate a unique version tag
+        id: v
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $manifest = Get-Content package.json -Raw | ConvertFrom-Json
+          $version = [string]$manifest.version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "package.json has no version" }
+
+          $expectedTag = "v$version"
+          $artifactTemplate = [string]$manifest.build.squirrelWindows.artifactName
+          if ([string]::IsNullOrWhiteSpace($artifactTemplate)) {
+            throw "package.json has no build.squirrelWindows.artifactName"
+          }
+          $setupName = $artifactTemplate.Replace('${version}', $version).Replace('${ext}', 'exe')
+          $requiredSetupName = "Sprout-Hollow-Valley-Setup-$version.exe"
+          if ($setupName -ne $requiredSetupName) {
+            throw "configured installer must resolve to $requiredSetupName, got $setupName"
+          }
+
+          $eventName = "${{ github.event_name }}"
+          if ($eventName -eq "push") {
+            if ("${{ github.ref_type }}" -ne "tag") {
+              throw "release pushes must be tag events"
+            }
+            $tag = "${{ github.ref_name }}"
+            if ($tag -ne $expectedTag) {
+              throw "tag $tag does not match package.json version $version; expected $expectedTag"
+            }
+            $source = "tag"
+          } elseif ($eventName -eq "workflow_dispatch") {
+            $tag = $expectedTag
+            $source = "dispatch"
+          } else {
+            throw "unsupported release event $eventName"
+          }
+
+          $head = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $head -ne $env:GITHUB_SHA) {
+            throw "checked-out commit $head does not match GITHUB_SHA $env:GITHUB_SHA"
+          }
+
+          function Get-GitHubResourceStatus {
+            param([string]$Path, [string]$Description, [int]$Tries = 5)
+            $headers = @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              Accept = "application/vnd.github+json"
+              "X-GitHub-Api-Version" = "2022-11-28"
+            }
+            $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/$Path"
+            for ($i = 1; $i -le $Tries; $i++) {
+              try {
+                $response = Invoke-WebRequest -Uri $uri -Headers $headers -Method Get -SkipHttpErrorCheck
+                $status = [int]$response.StatusCode
+                if ($status -in @(200, 404)) { return $status }
+                $failure = "HTTP $status"
+              } catch {
+                $failure = $_.Exception.Message
+              }
+              if ($i -eq $Tries) {
+                throw "could not establish whether $Description exists: $failure"
+              }
+              $wait = [Math]::Min(60, [Math]::Pow(2, $i) * 5)
+              "Reading $Description failed ($failure). Retrying in $wait seconds."
+              Start-Sleep -Seconds $wait
+            }
+          }
+
+          $encodedTag = [Uri]::EscapeDataString($tag)
+          $tagStatus = Get-GitHubResourceStatus "git/ref/tags/$encodedTag" "tag $tag"
+          $releaseStatus = Get-GitHubResourceStatus "releases/tags/$encodedTag" "release $tag"
+          if ($releaseStatus -ne 404) {
+            throw "release $tag already exists; releases are immutable and will not be edited"
+          }
+
+          if ($source -eq "tag") {
+            if ($tagStatus -ne 200) { throw "tag event $tag is not present on GitHub" }
+            $tagCommit = (git rev-parse "refs/tags/$tag^{commit}").Trim()
+            if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
+              throw "tag $tag resolves to $tagCommit, not this run's commit $env:GITHUB_SHA"
+            }
+          } elseif ($tagStatus -ne 404) {
+            throw "tag $tag already exists; workflow_dispatch only creates an unused version tag"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag"         >> $env:GITHUB_OUTPUT
+          "setup=$setupName" >> $env:GITHUB_OUTPUT
+          "source=$source"   >> $env:GITHUB_OUTPUT
+          "Unique release slot $tag is available for $env:GITHUB_SHA ($source)."
 
       - uses: actions/setup-node@v4
         with:
@@ -32,17 +124,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      - name: Resolve the version and tag
-        id: v
-        shell: pwsh
-        run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if ("${{ github.ref_type }}" -eq "tag") { $tag = "${{ github.ref_name }}" }
-          else { $tag = "v$version" }
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=$tag"         >> $env:GITHUB_OUTPUT
-          "Releasing $tag from $env:GITHUB_SHA"
 
       - name: Build the Squirrel.Windows package
         run: npm run package
@@ -80,12 +161,19 @@ jobs:
           "Collected $($files.Count) files:"
           $files | ForEach-Object { "  {0,-52} {1:N0} bytes" -f $_.Name, $_.Length }
 
-          $setup = $files | Where-Object { $_.Extension -eq ".exe" }
-          if (-not $setup) { throw "no Setup .exe was produced" }
+          $expectedSetup = "${{ steps.v.outputs.setup }}"
+          $setup = $files | Where-Object { $_.Name -eq $expectedSetup }
+          if (-not $setup) { throw "expected installer $expectedSetup was not produced" }
+          $unexpectedExecutables = $files | Where-Object {
+            $_.Extension -eq ".exe" -and $_.Name -ne $expectedSetup
+          }
+          if ($unexpectedExecutables) {
+            throw "unexpected setup executable(s): $($unexpectedExecutables.Name -join ', ')"
+          }
           $nupkg = $files | Where-Object { $_.Extension -eq ".nupkg" }
           if (-not $nupkg) { throw "no .nupkg was produced - Squirrel update assets are required" }
           if (-not (Test-Path staging/RELEASES)) { throw "no RELEASES file - Squirrel update feed is incomplete" }
-          if (($setup | Measure-Object -Property Length -Sum).Sum -lt 40MB) {
+          if ($setup.Length -lt 40MB) {
             throw "the setup executable is implausibly small; this is not a real build"
           }
 
@@ -131,7 +219,7 @@ jobs:
 
           ## Install
 
-          Download and run ``Sprout Hollow-Setup-${{ steps.v.outputs.version }}.exe``.
+          Download and run ``${{ steps.v.outputs.setup }}``.
 
           **These artifacts are not code-signed.** Windows will show an unknown-publisher
           or SmartScreen warning the first time you run the installer. That warning is
@@ -161,64 +249,26 @@ jobs:
           $body | Set-Content release-notes.md -Encoding utf8
           "Wrote release-notes.md ($($body.Length) chars)"
 
-      # One release per version. If the tag already carries a release, its assets and
-      # notes are replaced rather than a second, duplicate release being created.
+      # Publication is deliberately create-only. A failed or repeated run never moves a
+      # tag, edits an existing release, or overwrites an existing asset.
       - name: Publish the release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ steps.v.outputs.tag }}"
+          $assets = @(Get-ChildItem staging -File | ForEach-Object { $_.FullName })
+          if (-not $assets) { throw "no release assets were staged" }
 
-          # GitHub's own API answers 503 and 429 often enough to have cost this project a
-          # red release for a build that packaged successfully and then had the publish call come back
-          # "no server is currently available". A transient upstream failure is not a
-          # failure of the release, so every call that talks to the API is retried.
-          #
-          # Retries are safe here because each call is idempotent in the state it leaves
-          # behind: PATCH of a tag ref sets it, `release edit` sets the notes, and upload
-          # uses --clobber. Re-running one is the same as running it once.
-          function Invoke-WithRetry {
-            param([string]$What, [scriptblock]$Body, [int]$Tries = 5)
-            for ($i = 1; $i -le $Tries; $i++) {
-              & $Body
-              if ($LASTEXITCODE -eq 0) { return }
-              if ($i -eq $Tries) { throw "$What failed after $Tries attempts (exit $LASTEXITCODE)" }
-              $wait = [Math]::Min(60, [Math]::Pow(2, $i) * 5)
-              "$What failed (exit $LASTEXITCODE). Retrying in $wait seconds - attempt $($i + 1) of $Tries."
-              Start-Sleep -Seconds $wait
-            }
-          }
-
-          $exists = $false
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) { $exists = $true }
-
-          if ($exists) {
-            "Release $tag exists - updating it in place."
-
-            # The notes say "built from <sha>", so the tag has to agree. Without this
-            # the tag stays pinned to whichever commit first published this version
-            # while the artifacts and the notes move on, and the two quietly disagree
-            # about what was actually released.
-            Invoke-WithRetry "Moving tag $tag" {
-              gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" `
-                -f sha="$env:GITHUB_SHA" -F force=true | Out-Null
-            }
-            "Moved tag $tag to $env:GITHUB_SHA"
-
-            Invoke-WithRetry "Editing release $tag" {
-              gh release edit $tag --notes-file release-notes.md --title "Sprout Hollow $tag" --draft=false --latest
-            }
-            Invoke-WithRetry "Uploading assets to $tag" {
-              gh release upload $tag (Get-ChildItem staging -File | ForEach-Object { $_.FullName }) --clobber
-            }
+          if ("${{ steps.v.outputs.source }}" -eq "tag") {
+            gh release create $tag $assets --verify-tag `
+              --title "Sprout Hollow $tag" --notes-file release-notes.md --latest
           } else {
-            "Creating release $tag."
-            Invoke-WithRetry "Creating release $tag" {
-              gh release create $tag (Get-ChildItem staging -File | ForEach-Object { $_.FullName }) `
-                --title "Sprout Hollow $tag" --notes-file release-notes.md --latest
-            }
+            gh release create $tag $assets --target $env:GITHUB_SHA `
+              --title "Sprout Hollow $tag" --notes-file release-notes.md --latest
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw "create-only publication of $tag failed; no existing tag, release, notes, or assets were modified"
           }
 
       - name: Confirm the release is downloadable
@@ -244,22 +294,36 @@ jobs:
           }
 
           $json = (Read-WithRetry "Reading release $tag" {
-            gh release view $tag --json isDraft,assets,tagName
+            gh release view $tag --json isDraft,assets,tagName,url
           }) | ConvertFrom-Json
           if ($json.isDraft) { throw "the release is still a draft" }
+          if ($json.tagName -ne $tag) { throw "release reports tag $($json.tagName), expected $tag" }
 
-          # The notes claim this release was built from GITHUB_SHA; prove the tag agrees.
+          # Resolve through the commits API so both lightweight and annotated tags are
+          # compared to the checked-out commit rather than to an annotated tag object.
+          $encodedTag = [Uri]::EscapeDataString($tag)
           $tagged = Read-WithRetry "Reading tag $tag" {
-            gh api "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" --jq .object.sha
+            gh api "repos/$env:GITHUB_REPOSITORY/commits/$encodedTag" --jq .sha
           }
           if ($tagged -ne $env:GITHUB_SHA) {
             throw "tag $tag points at $tagged but this release was built from $env:GITHUB_SHA"
           }
           "Tag $tag correctly points at $tagged"
-          $names = $json.assets.name
+          $assets = @($json.assets)
+          $names = $assets.name
           "Published assets: $($names -join ', ')"
-          foreach ($required in @('.exe', '.nupkg', 'RELEASES')) {
-            if (-not ($names | Where-Object { $_ -like "*$required*" })) {
-              throw "the published release is missing $required"
+
+          $expectedSetup = "${{ steps.v.outputs.setup }}"
+          foreach ($required in @($expectedSetup, 'RELEASES')) {
+            if ($required -notin $names) { throw "the published release is missing $required" }
+          }
+          if (-not ($names | Where-Object { $_ -like '*.nupkg' })) {
+            throw "the published release is missing a Squirrel .nupkg"
+          }
+          foreach ($asset in $assets) {
+            if ([long]$asset.size -le 0) { throw "release asset $($asset.name) is empty" }
+            if ([string]::IsNullOrWhiteSpace([string]$asset.url)) {
+              throw "release asset $($asset.name) has no download URL"
             }
+            "Downloadable: {0,-52} {1:N0} bytes  {2}" -f $asset.name, $asset.size, $asset.url
           }

@@ -40,3 +40,16 @@ command arguments, environment variables, local file paths, save data, or stack 
 This installer repair was reproduced against the released v1.2.6 Squirrel package and then
 verified by installing a replacement package and launching its installed executable on a named
 off-screen Windows desktop. No screenshot or capture workflow was used.
+
+## Create-once releases
+
+The release workflow runs only for an explicit `v*` tag or a manual workflow dispatch. Its
+preflight reads the version and Squirrel artifact template from `package.json` before packaging.
+A tag-triggered run must use exactly `v${package.version}`, point at the checked-out commit, and
+have no existing GitHub release. A manual run requires both the derived tag and its release to be
+unused.
+
+Publication creates one new non-draft release. It never moves a tag, edits an existing release,
+or overwrites an asset. The installer name is derived from the Squirrel template and must resolve
+to `Sprout-Hollow-Valley-Setup-${version}.exe`; the unsigned assertion and post-publication tag,
+asset-size, and download-URL checks remain mandatory.

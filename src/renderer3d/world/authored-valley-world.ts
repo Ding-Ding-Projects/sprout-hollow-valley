@@ -364,12 +364,6 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
 }
 
-function squareDistance(left: AuthoredValleyCellPoint, right: AuthoredValleyCellPoint): number {
-  const dx = left.x - right.x
-  const dz = left.z - right.z
-  return dx * dx + dz * dz
-}
-
 function regionForCell(point: AuthoredValleyCellPoint): AuthoredValleyRegion {
   const regionId = authoredStructureRegionIdForCell(point)
   const region = AUTHORED_VALLEY_REGIONS.find((candidate) => candidate.id === regionId)

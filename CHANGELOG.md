@@ -10,6 +10,8 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-08-17
+
 ### Added
 
 - Persistent deterministic farming in every authored estate: each of the eight estate cells now

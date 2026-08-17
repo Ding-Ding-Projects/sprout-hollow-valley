@@ -10,6 +10,11 @@ import {
 } from './estate-farm-state'
 import { cropById } from './crops'
 import { treeById } from './trees'
+import {
+  cloneFactoryProductionState,
+  createDefaultFactoryProductionState,
+  readFactoryProductionState,
+} from './valley-factory-production'
 import type {
   Facing,
   GameState,
@@ -402,6 +407,7 @@ export function createDefaultValley3DSave(context: Valley3DReadContext): Valley3
     life: createLifeSimulation(context.seed),
     interior: null,
     estateFarming: createDefaultEstateFarmingState(context.seed, absoluteDay),
+    factoryProduction: createDefaultFactoryProductionState(gameMinuteIndex(context)),
   }
 }
 
@@ -427,6 +433,10 @@ export function readValley3DSave(
     life,
     interior,
     estateFarming: readEstateFarming(value['estateFarming'], context),
+    factoryProduction: readFactoryProductionState(
+      value['factoryProduction'],
+      gameMinuteIndex(context),
+    ),
   }
 }
 
@@ -441,6 +451,7 @@ export function cloneValley3DSave(state: Valley3DSaveV1): Valley3DSaveV1 {
     },
     life: cloneLifeSimulationState(state.life),
     estateFarming: cloneEstateFarmingState(state.estateFarming),
+    factoryProduction: cloneFactoryProductionState(state.factoryProduction),
     interior: state.interior === null
       ? null
       : {

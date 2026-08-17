@@ -188,6 +188,49 @@ export interface Valley3DEstateFarmingStateV1 {
   lastGrowthDay: number
 }
 
+export type Valley3DFactoryStaffReadiness =
+  | 'unassessed'
+  | 'npc-ready'
+  | 'player-ready'
+  | 'unavailable'
+
+export type Valley3DFactoryInspectionState = 'pending' | 'passed' | 'failed'
+
+export interface Valley3DFactoryProductionJobV1 {
+  /** Stable within one factory save row and deterministic from that row's serial. */
+  id: string
+  recipeId: string
+  queuedAtMinute: number
+  remainingMinutes: number
+  quality: Quality
+}
+
+export interface Valley3DFactoryFinishedGoodV1 {
+  productId: string
+  quality: Quality
+  quantity: number
+}
+
+/** Persistent logical production state for one canonical authored factory. */
+export interface Valley3DFactoryProductionFactoryV1 {
+  factoryId: string
+  queue: Valley3DFactoryProductionJobV1[]
+  /** Canonical material/product IDs only; non-positive quantities are never persisted. */
+  storage: Record<string, number>
+  finishedGoods: Valley3DFactoryFinishedGoodV1[]
+  staffReadiness: Valley3DFactoryStaffReadiness
+  cleanliness: number
+  inspection: Valley3DFactoryInspectionState
+  maintenance: number
+  lastAdvancedMinute: number
+  nextJobSerial: number
+}
+
+/** Exactly one row for each definition in `VALLEY_CONTENT_REGISTRY.factories`. */
+export interface Valley3DFactoryProductionStateV1 {
+  factories: Record<string, Valley3DFactoryProductionFactoryV1>
+}
+
 /**
  * Persistent interior state contains logical progress only. Presentation objects, meshes,
  * colliders, and transient runtime events are rebuilt from the authored graph on restore.
@@ -220,6 +263,8 @@ export interface Valley3DSaveV1 {
   interior: Valley3DInteriorStateV1 | null
   /** Added without changing v1: old saves deterministically receive all eight estate plots. */
   estateFarming: Valley3DEstateFarmingStateV1
+  /** Added without changing v1: old saves receive one safe idle row per canonical factory. */
+  factoryProduction: Valley3DFactoryProductionStateV1
 }
 
 export interface GameState {

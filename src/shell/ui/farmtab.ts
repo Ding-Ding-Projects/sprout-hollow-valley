@@ -36,6 +36,13 @@ import {
 } from '../../game/estate-farming'
 import { createState } from '../../game/state'
 import { formatClock } from '../../game/time'
+import {
+  advanceFactoryProduction,
+  compatibleRecipesForFactory,
+  createDefaultFactoryProductionState,
+  factoryProductionStatus,
+  performFactoryStationAction,
+} from '../../game/valley-factory-production'
 import type {
   Facing,
   GameState,
@@ -61,6 +68,7 @@ import {
   type DoorAccessResolution,
   type InteriorActorState,
   type InteriorGraph,
+  type StationKind,
 } from '../../interiors'
 import { structureDefinitionId } from '../../life/catalog'
 import { NPC_DEFINITIONS } from '../../life/npcs'
@@ -817,6 +825,8 @@ export function createFarmTab(): FarmTab {
       interior,
       estateFarming: state.valley3d?.estateFarming
         ?? createDefaultEstateFarmingState(state.seed, Math.floor(gameMinuteIndex(state) / (24 * 60))),
+      factoryProduction: state.valley3d?.factoryProduction
+        ?? createDefaultFactoryProductionState(gameMinuteIndex(state)),
     }
     currentState = { ...state, valley3d }
   }
@@ -911,15 +921,20 @@ export function createFarmTab(): FarmTab {
 
   const commitState = (next: GameState, message: string): void => {
     const previous = currentState
-    currentState = next
     syncLife(previous, next)
+    const synchronized = lifeState === null
+      ? next
+      : advanceFactoryProduction(next, lifeState, gameMinuteIndex(next))
+    currentState = synchronized
     const runtime = game.runtime
     if (runtime !== null) {
-      syncEnvironment(runtime, next)
-      if (next.valley3d !== undefined) runtime.syncEstateFarming(next.valley3d.estateFarming)
+      syncEnvironment(runtime, synchronized)
+      if (synchronized.valley3d !== undefined) {
+        runtime.syncEstateFarming(synchronized.valley3d.estateFarming)
+      }
     }
     announceFeedback(message)
-    if (previous !== next) requestAutosave()
+    if (previous !== synchronized) requestAutosave()
   }
 
   const applyInteriorResult = (
@@ -1007,6 +1022,8 @@ export function createFarmTab(): FarmTab {
       interior: null,
       estateFarming: saved?.estateFarming
         ?? createDefaultEstateFarmingState(state.seed, Math.floor(gameMinuteIndex(state) / (24 * 60))),
+      factoryProduction: saved?.factoryProduction
+        ?? createDefaultFactoryProductionState(gameMinuteIndex(state)),
     }
 
     const savedInterior = saved?.interior ?? null
@@ -1063,7 +1080,36 @@ export function createFarmTab(): FarmTab {
     return { state: restoredState, fellBack, restoredInterior: false }
   }
 
-  const useInteriorTarget = (runtime: ThreeRuntime, target: InteriorTarget): void => {
+  const executeFactoryStation = (
+    runtime: ThreeRuntime,
+    stationId: string,
+    stationKind: StationKind,
+    recipeId?: string,
+  ): void => {
+    const active = activeInterior
+    const state = currentState
+    if (active === null || state === null || active.binding.graph.kind !== 'factory') return
+    const interiorResult = active.runtime.useStation(stationId)
+    applyInteriorResult(runtime, interiorResult)
+    if (!interiorResult.ok) return
+    const life = lifeState ?? createLifeSimulation(state.seed)
+    const outcome = performFactoryStationAction(
+      state,
+      life,
+      active.binding.contentId,
+      stationKind,
+      gameMinuteIndex(state),
+      active.runtime.current.actor.hygieneComplete,
+      recipeId,
+    )
+    commitState(outcome.state, outcome.message)
+  }
+
+  const useInteriorTarget = (
+    runtime: ThreeRuntime,
+    target: InteriorTarget,
+    recipeId?: string,
+  ): void => {
     const active = activeInterior
     if (active === null || target.distance > INTERACTION_DISTANCE) return
     switch (target.kind) {
@@ -1088,7 +1134,14 @@ export function createFarmTab(): FarmTab {
         applyInteriorResult(runtime, active.runtime.traverseConnector(target.id))
         return
       case 'station':
-        applyInteriorResult(runtime, active.runtime.useStation(target.id))
+        {
+          const station = active.binding.graph.stations.find((candidate) => candidate.id === target.id)
+          if (active.binding.graph.kind === 'factory' && station !== undefined) {
+            executeFactoryStation(runtime, station.id, station.kind, recipeId)
+          } else {
+            applyInteriorResult(runtime, active.runtime.useStation(target.id))
+          }
+        }
         return
       case 'fixture':
         applyInteriorResult(runtime, active.runtime.useFixture(target.id))
@@ -1348,13 +1401,37 @@ export function createFarmTab(): FarmTab {
     } else if (activeInterior !== null) {
       const target = currentInteriorTarget
       if (target !== null) {
+        const station = target.kind === 'station'
+          ? activeInterior.binding.graph.stations.find((candidate) => candidate.id === target.id)
+          : undefined
+        const production = activeInterior.binding.graph.kind === 'factory' && currentState !== null
+          ? factoryProductionStatus(currentState, activeInterior.binding.contentId)
+          : null
         actions.push({
           id: `${target.kind}:${target.id}`,
           label: target.kind === 'door' ? `Open ${target.label}` : `Use ${target.label}`,
-          description: `Use the targeted ${target.kind}.`,
+          description: production === null
+            ? `Use the targeted ${target.kind}.`
+            : `${production.summary} ${production.detail}`,
           enabled: target.distance <= INTERACTION_DISTANCE,
           run: () => useInteriorTarget(runtime, target),
         })
+        if (
+          station !== undefined
+          && activeInterior.binding.graph.kind === 'factory'
+          && (station.kind === 'intake' || station.kind === 'production')
+        ) {
+          for (const recipe of compatibleRecipesForFactory(activeInterior.binding.contentId)) {
+            const verb = station.kind === 'intake' ? 'Stage inputs for' : 'Queue'
+            actions.push({
+              id: `${station.kind}:${station.id}:${recipe.id}`,
+              label: `${verb} ${recipe.name}`,
+              description: `${recipe.durationMinutes} game minutes · ${recipe.productionCost}g production cost · ${recipe.inputs.length} input types · ${recipe.outputs.length} output types.`,
+              enabled: target.distance <= INTERACTION_DISTANCE,
+              run: () => useInteriorTarget(runtime, target, recipe.id),
+            })
+          }
+        }
       }
       actions.push({
         id: 'sanitation-route',
@@ -1450,11 +1527,21 @@ export function createFarmTab(): FarmTab {
     } else if (activeInterior !== null && currentInteriorTarget !== null) {
       targetTitle.textContent = currentInteriorTarget.label
       prompt.textContent = `Use ${currentInteriorTarget.kind} (E / A)`
-      detail.textContent = `Inside ${activeInterior.binding.label}. Every visible door, station, and fixture is raycast-interactive.`
+      if (activeInterior.binding.graph.kind === 'factory') {
+        const status = factoryProductionStatus(state, activeInterior.binding.contentId)
+        detail.textContent = `${status.summary} ${status.detail}`
+      } else {
+        detail.textContent = `Inside ${activeInterior.binding.label}. Every visible door, station, and fixture is raycast-interactive.`
+      }
     } else if (activeInterior !== null) {
       targetTitle.textContent = activeInterior.binding.label
       prompt.textContent = 'Aim at a door, stairs, elevator, work station, restroom, sink, or fixture.'
-      detail.textContent = `${activeInterior.binding.graph.rooms.length} rooms · ${activeInterior.binding.graph.doors.length} doors · ${activeInterior.binding.graph.stations.length} stations · ${activeInterior.binding.graph.fixtures.length} fixtures.`
+      if (activeInterior.binding.graph.kind === 'factory') {
+        const status = factoryProductionStatus(state, activeInterior.binding.contentId)
+        detail.textContent = `${status.summary} ${status.detail}`
+      } else {
+        detail.textContent = `${activeInterior.binding.graph.rooms.length} rooms · ${activeInterior.binding.graph.doors.length} doors · ${activeInterior.binding.graph.stations.length} stations · ${activeInterior.binding.graph.fixtures.length} fixtures.`
+      }
     } else if (currentStructureTarget !== null) {
       targetTitle.textContent = currentStructureTarget.binding.label
       prompt.textContent = `Enter building (E / A)`
@@ -1471,7 +1558,9 @@ export function createFarmTab(): FarmTab {
     feedback.textContent = lastFeedback
 
     const actions = hudActions(runtime)
-    const signature = actions.map((action) => `${action.id}:${action.enabled}`).join('|')
+    const signature = actions
+      .map((action) => `${action.id}:${action.enabled}:${action.label}:${action.description}`)
+      .join('|')
     if (signature === lastActionSignature) return
     lastActionSignature = signature
     actionList.replaceChildren()
@@ -1623,12 +1712,15 @@ export function createFarmTab(): FarmTab {
     const saved = await loadSave()
     if (disposed) return
     const next = currentState ?? saved ?? createState(freshGameSeed())
-    currentState = next
     syncLife(null, next)
+    currentState = lifeState === null
+      ? next
+      : advanceFactoryProduction(next, lifeState, gameMinuteIndex(next))
+    const synchronized = currentState
     const runtime = game.runtime
-    let fellBack = next.valley3d === undefined
+    let fellBack = synchronized.valley3d === undefined
     if (runtime !== null) {
-      const restored = restoreValleyRuntime(runtime, next)
+      const restored = restoreValleyRuntime(runtime, synchronized)
       currentState = restored.state
       fellBack = fellBack || restored.fellBack
       syncEnvironment(runtime, restored.state)
@@ -1694,13 +1786,16 @@ export function createFarmTab(): FarmTab {
     },
     apply(next: GameState): void {
       const previous = currentState
-      currentState = next
       syncLife(previous, next)
+      currentState = lifeState === null
+        ? next
+        : advanceFactoryProduction(next, lifeState, gameMinuteIndex(next))
+      const synchronized = currentState
       const runtime = game.runtime
       if (runtime !== null) {
         activeInterior?.runtime.dispose()
         activeInterior = null
-        const restored = restoreValleyRuntime(runtime, next)
+        const restored = restoreValleyRuntime(runtime, synchronized)
         currentState = restored.state
         syncEnvironment(runtime, restored.state)
       }

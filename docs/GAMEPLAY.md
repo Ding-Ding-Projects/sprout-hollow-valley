@@ -118,6 +118,113 @@ Queues are visible: a machine shows what is cooking, what is waiting behind it, 
 is left. Inserting a recipe the player lacks ingredients for is refused with a message naming
 exactly what is short and how many. A finished machine shows a ready glow.
 
+### Valley-wide factory production
+
+The homestead machines above remain the compact farmyard production path. The connected-valley
+runtime applies the same visible, deterministic and non-lossy rules to **all 400 enterable
+factory definitions** and **all 1,200 production recipes** in the typed content registry.
+Factories are operational locations rather than decorative catalogue rows: their production
+state continues while their 3D rooms are unloaded, and entering a factory exposes the same
+state through its authored stations.
+
+A recipe is compatible only when the selected factory provides every capability named by the
+recipe's `factoryCapabilities` contract. Queue capacity comes from that factory definition;
+there is no universal capacity and no silent overflow. The primary production console lists
+only compatible recipes, while intake, inspection, raw-storage, preparation, washing, quality,
+packaging, finished-goods, shipping, maintenance, cleaning, staff-facilities and sanitation
+stations expose the corresponding part of the same factory record. A station never maintains
+a second private queue or inventory.
+
+#### Queue transaction and advancement
+
+Enqueue is an atomic transaction. It validates the factory, recipe, strict capability match,
+queue space, staged inputs, canonical production cost, completed interior hygiene route,
+`staffReadiness`, cleanliness, inspection and maintenance before reserving any stock or money. A
+successful enqueue appends one stable job record with the exact recipe ID, remaining duration and
+quality to that factory's FIFO queue, and uses `nextJobSerial` to assign the next stable
+per-factory job identity. A refusal leaves the queue, storage, inventory, money and serial
+unchanged and returns an accessible reason that identifies the failed condition.
+
+Advancement rechecks readiness and the operational gates, then uses explicit integer valley
+minutes. It starts at `lastAdvancedMinute`, spends time on the queue head, carries unused minutes
+to the next job in order, and records the target minute. Completed output moves to
+`finishedGoods`; lack of collection or destination storage never deletes it. Repeating the same
+target minute is a no-op, and a target earlier than `lastAdvancedMinute` is refused. Nothing reads
+the wall clock, depends on render frames or calls unseeded randomness, so the same state,
+catalogue and target minute always produce the same queue, storage and finished goods.
+
+#### Station gates and fail-closed rules
+
+Station interactions operate on authored station IDs inside the selected factory:
+
+| Station contract | Factory-production effect |
+|---|---|
+| Intake and raw storage | Select a strictly compatible recipe and stage the exact canonical inputs it still needs in persistent `storage`. |
+| Inspection | Inspect staged input; an empty or incomplete staged batch cannot pass. |
+| Staff facilities | Resolve an eligible on-shift NPC, or explicitly establish `player-ready` only when no such NPC is available. |
+| Restroom and hand washing | Complete the real interior hygiene route required before production; these remain separate stateful interactions. |
+| Washing and cleaning | Restore the persistent `cleanliness` production gate. |
+| Maintenance | Restore the persistent `maintenance` production gate. |
+| Production console | Inspect or enqueue work only after compatibility, capacity, readiness, hygiene, cleanliness, inspection, maintenance, staged-input and canonical-cost checks pass. |
+| Quality control, packaging and storage | Expose the accepted queue, held stock, gate state and finished lots without maintaining duplicate state. |
+| Finished-goods storage | Collect finished lots only within the canonical player-inventory capacity; rejected overflow remains held. |
+| Shipping | Dispatch canonical products using their exact registered sell prices rather than a station-local price table. |
+| Waste, recycling, safety, first aid and office | Remain state-aware usable services even when they do not mutate the queue. |
+
+Existing interior rules still require the actor to be in the correct structure and room.
+Sanitation is never replaced by a production-menu toggle, and a station never maintains a second
+private queue, inventory or price source.
+
+The runtime fails closed for an unknown factory, recipe, job, station, item, capability or NPC;
+the wrong factory or room; a capability mismatch; a full queue; insufficient inputs or cost;
+invalid or non-forward minutes; incomplete hygiene; unavailable staff; or a cleanliness,
+inspection or maintenance gate that is not ready. It never substitutes a similarly named
+definition, invents output, partially consumes a rejected batch, skips a blocked queue head or
+silently repairs an authored reference. Finished goods remain held until a capacity-checked
+collection or canonical-price shipping route accepts them.
+
+#### NPC and player readiness
+
+Each `Valley3DFactoryProductionFactoryV1` records one of four explicit `staffReadiness` values:
+
+| Value | Meaning |
+|---|---|
+| `unassessed` | Readiness has not yet been resolved for this shift. The queue does not advance. |
+| `npc-ready` | An existing persistent NPC has matching employment, is on shift and can operate the factory. |
+| `player-ready` | The player explicitly accepted the operating role at the factory's staff-facilities station. |
+| `unavailable` | No eligible operator is ready. The queue remains unchanged and the reason is exposed. |
+
+NPC readiness is derived read-only from the existing life-simulation state; production does not
+rewrite employment, schedules or NPC positions to make a shift pass. An unstaffed factory can be
+made `player-ready` through its staff-facilities station, so every one of the 400 factories stays
+operable without fabricating an NPC. Only `npc-ready` and `player-ready` permit queue advancement.
+
+#### Version-one persistence
+
+Factory production is an additive `Valley3DSaveV1.factoryProduction` record with the type
+`Valley3DFactoryProductionStateV1`. Every persisted factory row is a
+`Valley3DFactoryProductionFactoryV1` containing:
+
+| Field | Persisted responsibility |
+|---|---|
+| `queue` | Ordered accepted jobs and their remaining deterministic work. |
+| `storage` | Factory-held recipe inputs and intermediate stock. |
+| `finishedGoods` | Completed output waiting for a valid collection or shipping route. |
+| `staffReadiness` | The explicit `unassessed`, `npc-ready`, `player-ready` or `unavailable` state. |
+| `cleanliness` | The factory's production-cleanliness gate. |
+| `inspection` | The current inspection gate and hold state. |
+| `maintenance` | The current operational-maintenance gate. |
+| `lastAdvancedMinute` | The last absolute valley minute already applied to this queue. |
+| `nextJobSerial` | The next stable per-factory job serial; completed or removed jobs do not reuse it. |
+
+The outer save version remains version one. A version-one save written before
+`factoryProduction` existed loads with exactly one deterministic safe idle row per canonical
+factory; existing farm, interior and life state is not rewritten. Present records are validated
+against the exact 400 factory and 1,200 recipe definitions before use. Unknown or malformed
+authored references are refused rather than guessed, and unsupported future save versions remain
+rejected. Restore and save therefore preserve active jobs, held stock, readiness and gate states
+without weakening older version-one save compatibility.
+
 ## 4. New state
 
 `GameState` gains:

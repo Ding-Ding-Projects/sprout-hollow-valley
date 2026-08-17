@@ -10,6 +10,22 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic production state for all 400 enterable factories and all 1,200 registered
+  recipes. Capability-matched FIFO queues retain factory storage and finished goods, advance by
+  explicit valley minutes independently of 3D streaming and fail closed without partial input,
+  cost, queue or output mutations.
+- Authored factory-station operations for production, storage, inspection, cleanliness,
+  maintenance, finished-goods handling and staffing. Queue advancement requires an on-shift
+  eligible NPC or an explicit player-ready assignment at the staff-facilities station, keeping
+  every factory operable without rewriting NPC employment or inventing workers.
+- An additive `Valley3DSaveV1.factoryProduction: Valley3DFactoryProductionStateV1` record whose
+  per-factory `Valley3DFactoryProductionFactoryV1` rows preserve queues, storage, finished goods,
+  readiness, operational gates, the last applied valley minute and stable job serials. Older
+  version-one saves receive one deterministic safe idle row per canonical factory, while
+  malformed or unknown authored references are refused rather than guessed.
+
 ## [1.2.10] - 2026-08-17
 
 ### Fixed

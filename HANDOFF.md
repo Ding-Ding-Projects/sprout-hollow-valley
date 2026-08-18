@@ -2,19 +2,22 @@
 
 Updated: 2026-08-18
 
-## Current release candidate
+## Published release baseline
 
-The source baseline for this handoff is
-`0f9d07494d2c079ec142709354a8d31105054027`. It contains the renderer recovery
+The published `v1.2.12` baseline is
+`941c922a45c4658a34b321bdcdadd468e15633ef`. It includes the renderer recovery
 merge `169c529fef1d9b304669af6a201d2358ee6f2487`, the release preparation commit
-`471da91b5d536def31db99150fdba0857dd34bbe`, and the follow-up save, landing,
-history, accessibility, and shop corrections that followed. `package.json` and
+`471da91b5d536def31db99150fdba0857dd34bbe`, the handoff/roadmap commit
+`04ba585bb9f95e6f01da5dbf9c0cc745c6e1071a`, and the follow-up save, landing,
+history, accessibility, and shop corrections. `package.json` and
 `package-lock.json` declare version `1.2.12`.
 
-At the time this handoff was drafted, `origin/main` resolved to the same baseline
-commit. No `v1.2.12` tag or GitHub Release exists yet. The latest published release
-is still `v1.2.11` at `63b377ff81a4a91d0f46cfbc359d9dae7e192b33`; it must remain a
-historical record and must not be described as a repaired renderer release.
+[`v1.2.12`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/tag/v1.2.12)
+is the one published non-draft, non-prerelease release for this handoff. Its tag
+resolves to `941c922a45c4658a34b321bdcdadd468e15633ef`, and release run
+[32098991897](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32098991897)
+completed successfully for that exact commit. `v1.2.11` remains a historical
+broken-renderer release and must not be relabeled as repaired.
 
 ## Installed renderer recovery
 
@@ -42,24 +45,26 @@ Recorded recovery evidence is intentionally split by commit:
 | `bc80f5b95f784ca43f7e0dba6dbc5f2daea560fd` | Focused renderer and localization checks passed: 3 files, 32 assertions. `npm run typecheck` and `npm run package` also passed. |
 | `0f9d07494d2c079ec142709354a8d31105054027` | A newly built unsigned Squirrel installer silently installed `app-1.2.12`, then a direct headless launch reached a complete Farm document with one 1280×768 Three.js canvas, HUD, controls, tabs, no runtime error state, and a startup-log `application window loaded` record. Chromium recorded no `Object3D.add`, invalid-root, console, uncaught, or error entries. |
 
-The final local `1.2.12` artifacts were not published when this file was written:
+The published `1.2.12` release assets were read back after publication:
 
-| Artifact | SHA-256 |
-| --- | --- |
-| `Sprout-Hollow-Valley-Setup-1.2.12.exe` | `0FC8A9562CFB4ACEF88959DA1DB2E1977875DFE0D62EF522131B2DA3F343174D` |
-| `sprout-hollow-valley-1.2.12-full.nupkg` | `8A8E4959F79B3E286AE96746589C4D6F33191B777638854B5659DD1B0A95F5A3` |
-| `sprout-hollow-valley-1.2.12-delta.nupkg` | `4A69A68F76C5FDB6195823E607B49500EAC8405F953A897969BC8A97579F3967` |
-| `RELEASES` | `9C8FEF9F7658E311F8EA9586BE760016B469A8E1110DD424C6AB7276C89BFD8F` |
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [`Sprout-Hollow-Valley-Setup-1.2.12.exe`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.12/Sprout-Hollow-Valley-Setup-1.2.12.exe) | 147,107,840 | `838bc3f2b18e8325c2079d3f616702d2b7edca39ebbe2319072c88887d7f3c30` |
+| [`sprout-hollow-valley-1.2.12-full.nupkg`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.12/sprout-hollow-valley-1.2.12-full.nupkg) | 146,324,297 | `d09af8014c6b51153843e112588e4cc7f6e53808b03c893528adc74157c53a76` |
+| [`RELEASES`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.12/RELEASES) | 92 | `ed3eb0c882c8ba79e7e87db973a9eb78303565c3a9f6a92371daa08e383b6dab` |
 
 The setup executable reported `NotSigned`, as required. Icon inspection found valid
 small 16×16 and standard 32×32 application icon sizes in the packaged executable.
 
-## Remote evidence at the candidate baseline
+## Remote evidence
 
 - CI run [32096476804](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32096476804)
   completed successfully for `0f9d07494d2c079ec142709354a8d31105054027`.
 - Pages run [32096476843](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32096476843)
   completed successfully for the same commit.
+- Release run [32098991897](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32098991897)
+  completed successfully at the published tag target
+  `941c922a45c4658a34b321bdcdadd468e15633ef`.
 - The source tree has 40 `*.test.ts` files and 978 static `it` / `test` declarations.
   Those declarations are an inventory, not a substitute for an executed result.
 
@@ -68,11 +73,11 @@ small 16×16 and standard 32×32 application icon sizes in the packaged executab
 The renderer repair is complete as a source and installed-artifact recovery, but a
 release-grade shutdown is not yet complete. The next owner must retain these facts:
 
-1. Run and record the complete current local suite against the exact release commit.
+1. Run and record the complete current local suite against the exact published release commit.
    Do not infer an expanded pass count from the 978 static declarations.
-2. Run the declared build and release checks, including `npm run check:build`,
-   `npm run build:site`, the real Squirrel packaging route, the committed line counter,
-   and a fresh installed-artifact launch against the exact release artifact.
+2. Preserve a release-grade acceptance record for every declared local check, including
+   `npm run check:build`, `npm run build:site`, the committed line counter, the real
+   Squirrel packaging route, and installed-artifact interaction tied to the exact artifact.
 3. `docs/VALLEY-COMPLETENESS.md` still identifies 61 evidence rows as planned and has
    no complete row. It lacks installed-artifact traversal and capture proof for all 700
    structures, their rooms, doors, stations, sanitation routes, estate farming,
@@ -80,16 +85,14 @@ release-grade shutdown is not yet complete. The next owner must retain these fac
 4. The project does not yet have a runnable aggregate harness for the complete
    700-structure traversal, long-run simulation, and performance evidence required by
    `PLAN.md`. Do not represent a source-level or single-Farm launch as that evidence.
-5. The release workflow validates Squirrel artifact publication, but it does not run the
-   full test suite, site build, installed-artifact interaction, or complete capture
-   matrix. Its release notes also need verified workflow timing and the required release
-   metadata before a release can be called fully proven.
+5. The successful release workflow validates this release's Squirrel artifact publication,
+   but its scope does not replace a full test suite, site build, installed-artifact
+   interaction, or complete capture matrix.
 6. The root one-click build scripts still need a fresh-machine bootstrap proof: they
    currently depend on Node/npm being available on `PATH`, and their silent-mode and
    installer-integrity contracts need end-to-end verification.
-7. `docs/VALLEY-LAUNCH.md` contains historical installer evidence; update it when the
-   final release artifact and release identifier are verified rather than guessing a
-   future release URL.
+7. `docs/VALLEY-LAUNCH.md` contains historical installer evidence; update it with the
+   verified `v1.2.12` release facts in its own focused documentation change.
 
 These are evidence and completeness gaps, not permission to weaken validation or to
 call unfinished coverage complete.
@@ -100,13 +103,12 @@ call unfinished coverage complete.
    immediately before any integration or cleanup action.
 2. Preserve and integrate the completed documentation and verification lanes without
    discarding independent work.
-3. Build `v1.2.12` from its exact final `main` commit, inspect every Squirrel artifact,
-   and repeat the installed headless Farm launch with that artifact.
-4. Create one new immutable `v1.2.12` tag and one non-draft GitHub Release only after
-   the final commit, hashes, notes, assets, and release workflow evidence are ready.
-   Never overwrite `v1.2.11` or recycle its tag or assets.
-5. Verify the published tag, commit, assets, downloads, release notes, and final CI
-   result through the GitHub CLI.
+3. Keep the published `v1.2.12` tag, release, hashes, and assets immutable. Any future
+   correction needs a new version rather than replacement assets or a moved tag.
+4. Complete the remaining local acceptance, capture, and completeness evidence against
+   the published source or a later explicitly versioned release candidate.
+5. Verify any future release through the GitHub CLI: tag target, draft state, asset names,
+   sizes, digests, downloads, release notes, and the final remote run.
 6. Do not delete any branch, linked working tree, directory, or stash until every source
    tip is proven merged into the released `main`, all work is committed and pushed, and
    the current user explicitly authorizes that irreversible cleanup.
@@ -124,7 +126,6 @@ call unfinished coverage complete.
 
 ## Handoff ownership notes
 
-This handoff update and the newly added `ROADMAP.md` are documentation-only work. They
-must be merged with the other completed lanes before any release decision. Re-run
+This post-release handoff update is documentation-only work. Re-run
 `git worktree list --porcelain`, `git branch --all --verbose --no-abbrev`, and
 `git stash list` at resumption rather than relying on a static branch list in this file.

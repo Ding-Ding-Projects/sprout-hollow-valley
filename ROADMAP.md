@@ -14,11 +14,12 @@ unchecked item remains work, even when the surrounding source has been implement
 - [x] Build and headlessly launch a local unsigned `1.2.12` Squirrel installer with a
   complete Farm canvas, HUD, startup-log load record, and no recorded renderer error.
 - [ ] Run the complete current local validation inventory against the final release commit.
-- [ ] Rebuild and inspect the final installer, update packages, icon sizes, hashes, and
-  unsigned state from that exact commit.
-- [ ] Publish one new immutable `v1.2.12` release with its verified Squirrel assets,
-  release notes, line-count evidence, required metadata, and download proof.
-- [ ] Confirm the final `main` CI result and release workflow result for the published tag.
+- [x] Build and inspect the published installer and update assets, including sizes,
+  hashes, packaged icon sizes, and unsigned state.
+- [x] Publish exactly one immutable `v1.2.12` release with verified Squirrel assets and
+  download proof.
+- [x] Confirm the source candidate CI/Pages runs and the successful `v1.2.12` release
+  workflow run at tag target `941c922a45c4658a34b321bdcdadd468e15633ef`.
 
 ## Runtime evidence
 

@@ -236,9 +236,9 @@ describe('tokens.css carries the rest of the contract', () => {
     expect(declares('--sh-scale')).toBe(true)
   })
 
-  it('keeps every interactive target at or above 24 CSS px', () => {
+  it('keeps every interactive target at the 44 CSS px accessibility floor', () => {
     // `max(rem, px)` is what holds the floor when the user's base font is small.
-    expect(TOKENS_CSS).toMatch(/--sh-target-min\s*:\s*max\([^;]*24px\)/)
+    expect(TOKENS_CSS).toMatch(/--sh-target-min\s*:\s*max\([^;]*44px\)/)
   })
 
   it('has a reduced-motion block, and an in-app override in both directions', () => {

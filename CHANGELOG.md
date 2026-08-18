@@ -14,6 +14,10 @@ build time, so what you see in the app is what is in the repository.
 
 ### Fixed
 
+- The landing page now serves three genuine installed-application Farm captures at their current
+  framebuffer dimensions, keeps the canonical Valley palette available to its semantic roles, and
+  preserves a 44 px minimum target rather than rejecting a stricter accessible size.
+
 - Squirrel.Windows packaging now keeps executable editing disabled alongside the existing unsigned
   release controls, so the installer path never invokes a signing-capable executable-edit step.
 

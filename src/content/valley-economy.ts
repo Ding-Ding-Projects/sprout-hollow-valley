@@ -101,8 +101,8 @@ function seasonalDemand(index: number, peak = 1.24): EconomyDef['seasonalDemand'
   return values
 }
 
-function unlockFor(index: number, prerequisiteIds: readonly string[] = []): UnlockDef {
-  const level = 1 + (index % 100)
+function unlockFor(index: number, prerequisiteIds: readonly string[] = [], minimumLevel = 1): UnlockDef {
+  const level = Math.max(minimumLevel, 1 + (index % 100))
   const regionId = REGIONS[Math.floor(index / 13) % REGIONS.length]!
   return {
     level,
@@ -350,7 +350,7 @@ const FRESH_PRODUCTS: readonly ProductDef[] = FRESH_SOURCE_DEFS.map(
       ...localizationKeys('product', id),
       seasons: definition.seasons,
       regions: definition.regions,
-      unlock: unlockFor(index, [definition.id]),
+      unlock: unlockFor(index, [definition.id], definition.unlock.level),
       economy: productEconomy(12 + (index % 43) * 3, index),
       tags: ['fresh', category, idLeaf(definition.id)],
       productCategory: category,
@@ -381,7 +381,7 @@ const ANIMAL_PRODUCTS: readonly ProductDef[] = VALLEY_ANIMALS
         ...localizationKeys('product', product.productId),
         seasons: animal.seasons,
         regions: animal.regions,
-        unlock: unlockFor(index, [animal.id]),
+        unlock: unlockFor(index, [animal.id], animal.unlock.level),
         economy: productEconomy(28 + animalIndex * 2 + productIndex * 7, index),
         tags: ['animal-good', animal.speciesGroup, commoditySlug],
         productCategory: 'animal-good',
@@ -435,7 +435,7 @@ const MATERIAL_PRODUCT_BLUEPRINTS: readonly ProductBlueprint[] = VALLEY_MATERIAL
       ...localizationKeys('product', id),
       seasons: material.seasons,
       regions: material.regions,
-      unlock: unlockFor(index + 35, [material.id]),
+      unlock: unlockFor(index + 35, [material.id], material.unlock.level),
       economy: productEconomy(material.economy.craftValue * 2.1 + 18, index + 900),
       tags: ['refined', material.materialCategory, idLeaf(material.id)],
       productCategory: materialProductCategory(material),
@@ -512,7 +512,7 @@ function processedProductBlueprint(
     ...localizationKeys('product', id),
     seasons: source.seasons,
     regions: source.regions,
-    unlock: unlockFor(index + 18, [source.id]),
+    unlock: unlockFor(index + 18, [source.id], source.unlock.level),
     economy: productEconomy(source.economy.sellPrice * process.valueMultiplier + 15, index + 1600),
     tags: ['processed', process.slug, sourceSlug],
     productCategory: process.productCategory,
@@ -616,6 +616,29 @@ const RECIPE_OUTPUT_BLUEPRINTS = [
   ...PROCESSED_PRODUCT_BLUEPRINTS,
 ]
 
+const ITEM_UNLOCK_LEVELS = new Map<string, number>([
+  ...VALLEY_MATERIALS.map((material) => [material.id, material.unlock.level] as const),
+  ...VALLEY_PRODUCTS.map((product) => [product.id, product.unlock.level] as const),
+])
+
+/** Ensure every installed factory capability owns at least one deterministic recipe. */
+const RECIPE_CAPABILITY_COVERAGE: readonly FactoryCapability[] = [
+  'capability:cleaning',
+  'capability:sorting',
+  'capability:baking',
+  'capability:roasting',
+  'capability:smoking',
+  'capability:churning',
+  'capability:cheesemaking',
+  'capability:distilling',
+  'capability:freezing',
+  'capability:spinning',
+  'capability:tanning',
+  'capability:papermaking',
+  'capability:glassmaking',
+  'capability:tailoring',
+]
+
 function recipeDefinition(
   blueprint: ProductBlueprint,
   technique: RecipeTechnique,
@@ -638,7 +661,11 @@ function recipeDefinition(
     ...localizationKeys('recipe', id),
     seasons: blueprint.definition.seasons,
     regions: blueprint.definition.regions,
-    unlock: unlockFor(index + technique.unlockOffset, [blueprint.primaryInputId]),
+    unlock: unlockFor(
+      index + technique.unlockOffset,
+      [blueprint.primaryInputId],
+      ITEM_UNLOCK_LEVELS.get(blueprint.primaryInputId) ?? 1,
+    ),
     economy: {
       purchasePrice: 0,
       sellPrice: 0,
@@ -653,7 +680,7 @@ function recipeDefinition(
     productionCost,
     inputs,
     outputs: [{ itemId: blueprint.definition.id, quantity: technique.outputQuantity }],
-    factoryCapabilities: [blueprint.capability],
+    factoryCapabilities: [RECIPE_CAPABILITY_COVERAGE[index] ?? blueprint.capability],
   }
 }
 

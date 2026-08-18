@@ -687,6 +687,16 @@ async function boot(root: HTMLElement): Promise<Shell> {
     if (tab.kind === 'farm') strip.panelFor(tab.id).classList.add('sh-tabpanel--canvas')
   }
 
+  function syncDocumentTitle(): void {
+    const activeId = model.activeId()
+    const active = activeId === null ? undefined : model.tab(activeId)
+    const nextTitle =
+      active === undefined
+        ? APP_NAME
+        : t('titlebar.documentTitle', { tab: tabLabel(active), app: APP_NAME })
+    if (document.title !== nextTitle) document.title = nextTitle
+  }
+
   function syncPanels(): void {
     const live = new Set(model.tabs().map((tab) => tab.id))
     for (const [id, panel] of panels) {
@@ -699,12 +709,7 @@ async function boot(root: HTMLElement): Promise<Shell> {
 
     const activeId = model.activeId()
     farm?.setVisible(activeId === 'farm')
-
-    const active = activeId === null ? undefined : model.tab(activeId)
-    document.title =
-      active === undefined
-        ? APP_NAME
-        : t('titlebar.documentTitle', { tab: tabLabel(active), app: APP_NAME })
+    syncDocumentTitle()
   }
 
   syncPanels()
@@ -775,7 +780,7 @@ async function boot(root: HTMLElement): Promise<Shell> {
     statusHint.textContent = t('palette.hint', { keys: PALETTE_CHORD })
     statusTagline.textContent = t('app.tagline')
     titlebar.refresh()
-    syncPanels()
+    syncDocumentTitle()
   }
   relabel()
   disposers.push(onLangChange(relabel))

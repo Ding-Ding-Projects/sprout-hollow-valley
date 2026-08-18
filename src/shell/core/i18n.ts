@@ -188,14 +188,19 @@ function interpolate(template: string, params?: Record<string, string | number>)
  * An unknown key returns the key itself, verbatim and visible — never an empty string —
  * so a missing entry shows up on screen instead of silently blanking a control.
  */
-export function t(key: StringKey, params?: Record<string, string | number>): string {
+/** Renders one requested language without changing persisted language state or notifying listeners. */
+export function tIn(
+  requestedLang: Lang,
+  key: StringKey,
+  params?: Record<string, string | number>,
+): string {
   ensureStarted()
 
   const entry = entryFor(key)
   if (!entry) return key
 
-  if (lang === 'en') return interpolate(voice(entry, 'en'), params)
-  if (lang === 'yue') return interpolate(voice(entry, 'yue'), params)
+  if (requestedLang === 'en') return interpolate(voice(entry, 'en'), params)
+  if (requestedLang === 'yue') return interpolate(voice(entry, 'yue'), params)
 
   const en = interpolate(voice(entry, 'en'), params)
   const yue = interpolate(voice(entry, 'yue'), params)
@@ -203,6 +208,11 @@ export function t(key: StringKey, params?: Record<string, string | number>): str
   if (en.length === 0) return yue
   if (yue.length === 0) return en
   return `${en}${BOTH_SEPARATOR}${yue}`
+}
+
+/** Renders with the currently selected language mode. */
+export function t(key: StringKey, params?: Record<string, string | number>): string {
+  return tIn(lang, key, params)
 }
 
 /** Every key in the catalogue, sorted, as a fresh array. */

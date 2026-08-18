@@ -1771,6 +1771,7 @@ export function createFarmTab(): FarmTab {
     element,
     canvas: game.canvas,
     setVisible(next: boolean): void {
+      if (visible === next) return
       visible = next
       applyClock()
     },

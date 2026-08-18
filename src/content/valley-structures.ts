@@ -622,7 +622,7 @@ function createDecoration(style: DecorationStyle, styleIndex: number, archetype:
     regions: [style.region],
     unlock: unlockFor(styleIndex, archetypeIndex, DECORATION_ARCHETYPES.length, style.region),
     economy: structureEconomy(archetype.basePrice, sequence, 180),
-    tags: ['structure', 'decoration', archetype.type, style.region, style.slug, archetype.slug],
+    tags: ['structure', 'decoration', `type:${archetype.type}`, style.region, style.slug, archetype.slug],
     decorationType: archetype.type,
     footprint: {
       width: archetype.width,

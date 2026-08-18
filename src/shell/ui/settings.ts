@@ -53,6 +53,7 @@ import {
   onLangChange,
   setFunny,
   setLang,
+  tIn,
   t as translate,
 } from '../core/i18n'
 import type { StringKey } from '../core/i18n'
@@ -198,23 +199,12 @@ function key(id: string): StringKey {
   return id as unknown as StringKey
 }
 
-/** True while a funny-level sample is rendered in a language that is not the active one. */
-let sampling = false
-
 function sampleIn(lang: Lang, id: string, params?: Params): string {
-  const active = settings().language
-  if (active === lang) return t(id, params)
-  sampling = true
+  if (!hasKey(id)) return t(id, params)
   try {
-    setLang(lang)
-    return t(id, params)
-  } finally {
-    try {
-      setLang(active)
-    } catch {
-      // The store still holds the real choice; the next render puts it back.
-    }
-    sampling = false
+    return tIn(lang, key(id), params)
+  } catch {
+    return humanise(id)
   }
 }
 
@@ -1779,7 +1769,6 @@ export function createSettingsPanel(options: SettingsPanelOptions = {}): Setting
   })
 
   const stopLang = onLangChange(() => {
-    if (sampling) return
     retranslateAll()
     context.refresh()
   })

@@ -248,7 +248,9 @@ export class WeatherHookRegistry {
       .filter((record) => record.attached)
       .map((record) => record.layer)
     this.root.clear()
-    this.root.add(...layers)
+    // Three treats a zero-argument Object3D.add() as an attempted undefined child.
+    // An empty weather registry is the normal startup state, so it needs no add call.
+    if (layers.length > 0) this.root.add(...layers)
   }
 
   private invoke(

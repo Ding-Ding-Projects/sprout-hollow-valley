@@ -12,6 +12,8 @@ build time, so what you see in the app is what is in the repository.
 
 ### Fixed
 
+- Empty weather-hook registries now skip Three.js's zero-argument `Object3D.add()` call, which
+  previously emitted an undefined-child diagnostic during the initial 3D Farm startup path.
 - Installed startup now completes the fail-closed 5,000-definition content registration instead
   of aborting the renderer with 2,240 generated-data validation issues. Taxonomy facets remain
   unique, product and recipe unlocks cannot precede their prerequisites, every installed factory

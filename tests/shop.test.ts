@@ -3,6 +3,7 @@ import { SEASONS, START_GOLD } from '../src/game/constants'
 import { cropById, cropsForSeason, produceValue } from '../src/game/crops'
 import { addItem, countItem, createState, itemKey } from '../src/game/state'
 import { buy, sell, sellAllProduce, sellValue, shopStock } from '../src/game/shop'
+import { treeById, treesForSeason } from '../src/game/trees'
 import type { GameState, ItemRef } from '../src/game/types'
 
 const PARSNIP_SEED: ItemRef = { kind: 'seed', cropId: 'parsnip' }
@@ -25,11 +26,13 @@ function priceOf(state: GameState, item: ItemRef): number {
 }
 
 describe('shopStock', () => {
-  it('lists exactly the seeds of the current season', () => {
+  it('lists exactly the crop seeds and saplings of the current season', () => {
     for (const season of SEASONS) {
       const state = { ...shopper(), season }
       const seeds = shopStock(state).filter((entry) => entry.item.kind === 'seed')
-      const expected = cropsForSeason(season).map((crop) => crop.id).sort()
+      const expected = [...cropsForSeason(season), ...treesForSeason(season)]
+        .map((plant) => plant.id)
+        .sort()
       const listed = seeds
         .map((entry) => (entry.item.kind === 'seed' ? entry.item.cropId : ''))
         .sort()
@@ -43,15 +46,15 @@ describe('shopStock', () => {
     expect(keys).toContain(itemKey(FERTILIZER))
   })
 
-  it('prices seeds from the crop table and writes a readable note', () => {
+  it('prices seasonal plant stock from its rules and writes a readable note', () => {
     for (const entry of shopStock(shopper())) {
       expect(entry.price).toBeGreaterThan(0)
       expect(entry.note.length).toBeGreaterThan(0)
       expect(entry.stock === null || entry.stock > 0).toBe(true)
       if (entry.item.kind !== 'seed') continue
-      const crop = cropById(entry.item.cropId)
-      expect(crop).toBeDefined()
-      expect(entry.price).toBe(crop?.seedCost)
+      const plant = cropById(entry.item.cropId) ?? treeById(entry.item.cropId)
+      expect(plant).toBeDefined()
+      expect(entry.price).toBe(plant?.seedCost)
     }
   })
 })

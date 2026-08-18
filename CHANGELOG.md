@@ -10,6 +10,8 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-08-17
+
 ### Fixed
 
 - Empty weather-hook registries now skip Three.js's zero-argument `Object3D.add()` call, which

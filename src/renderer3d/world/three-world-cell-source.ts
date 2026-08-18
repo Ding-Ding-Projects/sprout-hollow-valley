@@ -74,6 +74,17 @@ function throwIfAborted(signal: AbortSignal): void {
   if (signal.aborted) throw abortError()
 }
 
+/** Keep a broken builder from becoming an opaque Three.js console diagnostic. */
+function assertThreeRoot(value: unknown, label: string): asserts value is Object3D {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    (value as { readonly isObject3D?: unknown }).isObject3D !== true
+  ) {
+    throw new TypeError(`${label} returned an invalid Three root`)
+  }
+}
+
 function seededCellColor(seed: number): number {
   const red = 72 + (seed & 0x1f)
   const green = 126 + ((seed >>> 5) & 0x3f)
@@ -216,6 +227,7 @@ export class ThreeWorldCellSource implements WorldCellSource<LoadedThreeWorldCel
         },
       })
       throwIfAborted(signal)
+      assertThreeRoot(content.root, `World cell ${descriptor.key}`)
 
       for (const collider of content.colliders ?? []) {
         this.options.collision.addStaticCollider(collider)
@@ -230,7 +242,8 @@ export class ThreeWorldCellSource implements WorldCellSource<LoadedThreeWorldCel
         dispose: content.dispose,
       })
     } catch (error) {
-      content?.root.parent?.remove(content.root)
+      const root = content?.root
+      if (root?.isObject3D === true) root.parent?.remove(root)
       for (const id of [...colliderIds].reverse()) this.options.collision.removeStaticCollider(id)
       try {
         await content?.dispose?.()

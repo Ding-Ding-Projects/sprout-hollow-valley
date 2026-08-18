@@ -123,6 +123,17 @@ function nextFixtureKind(stage: SanitationStage): FixtureKind {
   }
 }
 
+/** Surface an invalid renderer bridge before Three emits a non-local undefined-child warning. */
+function assertInteriorPresentationRoot(value: unknown, graphId: string): void {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    (value as { readonly isObject3D?: unknown }).isObject3D !== true
+  ) {
+    throw new TypeError(`Interior ${graphId} has an invalid Three presentation root`)
+  }
+}
+
 /**
  * Deterministic bridge between the typed interior rules and the Three.js presentation.
  * It owns no wall clock or animation loop: callers explicitly select actions and ticks.
@@ -172,6 +183,7 @@ export class ThreeInteriorRuntimeAdapter {
   mount(target: ThreeInteriorMountTarget): void {
     this.assertActive()
     if (this.mountTarget !== null) throw new Error('ThreeInteriorRuntimeAdapter is already mounted')
+    assertInteriorPresentationRoot(this.presentation.root, this.graph.id)
     target.scene.add(this.presentation.root)
     if (target.addCollider !== undefined) {
       for (const collider of this.presentation.colliders) target.addCollider(collider)

@@ -1,164 +1,130 @@
 # Sprout Hollow Valley handoff
 
-Updated: 2026-08-17
+Updated: 2026-08-18
 
-## What the project is now
+## Current release candidate
 
-Sprout Hollow Valley is a public Windows Electron farming and life-simulation application whose
-Farm tab now mounts a Three.js third-person open valley rather than the inherited pixel canvas.
-The current source contains the exact typed catalogue promised by `PLAN.md` (5,000 non-NPC
-definitions), exactly 240 persistent NPC definitions, exactly 400 factory and 300 non-factory
-building definitions, one deterministic exterior placement and real interior mapping for every
-structure, persistent farming in all eight estates, and persistent production state for all 400
-factories and 1,200 recipes. The GitHub Pages site is a responsive landing, documentation, status,
-and download surface; it is not a playable build of the application.
+The source baseline for this handoff is
+`0f9d07494d2c079ec142709354a8d31105054027`. It contains the renderer recovery
+merge `169c529fef1d9b304669af6a201d2358ee6f2487`, the release preparation commit
+`471da91b5d536def31db99150fdba0857dd34bbe`, and the follow-up save, landing,
+history, accessibility, and shop corrections that followed. `package.json` and
+`package-lock.json` declare version `1.2.12`.
 
-## Published baseline
+At the time this handoff was drafted, `origin/main` resolved to the same baseline
+commit. No `v1.2.12` tag or GitHub Release exists yet. The latest published release
+is still `v1.2.11` at `63b377ff81a4a91d0f46cfbc359d9dae7e192b33`; it must remain a
+historical record and must not be described as a repaired renderer release.
 
-- Latest published release: [`v1.2.11`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/tag/v1.2.11).
-- Tag target: `63b377ff81a4a91d0f46cfbc359d9dae7e192b33`.
-- Release state: one matching release, non-draft and non-prerelease, published 2026-08-17.
-- Windows installer: [`Sprout-Hollow-Valley-Setup-1.2.11.exe`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.11/Sprout-Hollow-Valley-Setup-1.2.11.exe), 147,233,280 bytes, SHA-256 `330a689e57178a323e13756f849a38e5f637146333970bf63ddb44978f5b357d`.
-- Full update package: [`sprout-hollow-valley-1.2.11-full.nupkg`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.11/sprout-hollow-valley-1.2.11-full.nupkg), 146,450,137 bytes, SHA-256 `552f3ee7f48065e0c6324130459f796d3421a5a3192f0bb6ae1046082b4d8935`.
-- Update feed: [`RELEASES`](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/releases/download/v1.2.11/RELEASES), 92 bytes, SHA-256 `185ffbc13d19a092321b6194e7b1509990ba6d1d9e6fb19f77bbd8387595b3ea`.
-- Release workflow: [run 32073833423](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32073833423), successful at the tag target. Unique-tag validation, Squirrel packaging, unsigned-executable assertion, create-only publication, and download checks all passed.
-- Tag CI: [run 32073833481](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32073833481), successful at the tag target.
-- Pages deployment: [run 32073819458](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32073819458), successful at the tag target.
-- Landing site: <https://ding-ding-projects.github.io/sprout-hollow-valley/>. A hidden 390×844 browser check confirmed 200 responses for the compiled CSS and JavaScript, no horizontal overflow, styled Material controls, and the explicit non-playable-site boundary.
+## Installed renderer recovery
 
-## Important installed-build finding
+The published `v1.2.11` installer could create its Electron window but the renderer
+aborted while importing the content catalogue with 2,240 validation issues. The
+recovery branch first repaired that catalogue validation, then found and repaired a
+separate startup starvation path: a settings language sample temporarily changed the
+live language while its own refresh listener was active. That cycle repeatedly
+relabeled and synchronized panels before the first Farm render callback could run.
 
-The release workflow and installer complete, and a clean hidden installation of the exact v1.2.11
-package produced `app-1.2.11` with an intact `resources/app.asar`. Squirrel install handling
-completed in 436 ms. A direct cheap-headless launch reached a real 1296×904 Electron window, and
-the startup log recorded identity, primary-instance lock, Electron readiness, and document load in
-0.879 seconds.
+The integrated recovery keeps catalogue validation fail-closed and additionally:
 
-The published v1.2.11 renderer then aborts during module import. Chromium reports:
+- namespaces generated taxonomy facets and validates dependent unlocks, capability
+  coverage, and alternate outputs correctly;
+- avoids a zero-argument Three.js `Object3D.add()` call for empty weather hooks;
+- rejects invalid world and interior roots at their mount boundaries;
+- avoids recreating an already-visible Farm surface; and
+- renders settings samples through a pure requested-language lookup instead of
+  mutating the persisted language or notifying listeners.
 
-```text
-Uncaught ContentValidationError: Sprout Hollow Valley content validation failed (2240 issues)
-```
+Recorded recovery evidence is intentionally split by commit:
 
-The exact 2,240 issues were 80 invalid generated-category values, 950 invalid dependent unlocks,
-280 missing-capability reports, and 930 recipe-output reference-kind mismatches. The shell window
-therefore exists in the published build but the Farm surface does not finish mounting.
+| Commit | Evidence |
+| --- | --- |
+| `bc80f5b95f784ca43f7e0dba6dbc5f2daea560fd` | Focused renderer and localization checks passed: 3 files, 32 assertions. `npm run typecheck` and `npm run package` also passed. |
+| `0f9d07494d2c079ec142709354a8d31105054027` | A newly built unsigned Squirrel installer silently installed `app-1.2.12`, then a direct headless launch reached a complete Farm document with one 1280×768 Three.js canvas, HUD, controls, tabs, no runtime error state, and a startup-log `application window loaded` record. Chromium recorded no `Object3D.add`, invalid-root, console, uncaught, or error entries. |
 
-Fix branch `fix/v1211-installed-launch` now contains commit
-`d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd` (`fix(startup): validate generated content graph`). It keeps validation enabled, removes
-diagnostic probes, namespaces and deduplicates generated taxonomy facets, floors dependent unlocks,
-assigns deterministic recipes to the 14 previously uncovered capabilities, and validates alternate
-recipe output identity without requiring every technique to appear in a product's primary-source
-list. The exact fix commit passed the real package command. Its local artifacts are: setup
-147,234,304 bytes (SHA-256 `30a8afe5e60b876215a7ad8d8e0666f742620cba73ce29b81af950174e462ec3`),
-full package 146,451,446 bytes (SHA-256 `4a64b220025cbe6d6fedbf1a5e94be35f0282b7d586a127658da55f5450e37bc`),
-and a 92-byte `RELEASES` feed (SHA-256 `ff9f1915e9be6ff100f2c660208f6bfe2cc8c16f948320186ee60146feec6f2c`).
+The final local `1.2.12` artifacts were not published when this file was written:
 
-A same-version hidden reinstall of that fix completed its Squirrel hook in 380 ms. A direct hidden
-launch produced a dynamic 1296×904 `Chrome_WidgetWin_1` Farm-titled window
-(`農場 — Sprout Hollow Valley`), and Chromium no longer contained the original
-`ContentValidationError`. That is not a completed launch verdict: the fixed startup log never
-appended `application window loaded`, the CDP DOM-detail probe timed out without a parseable
-response, and the renderer appears to stall later in 3D startup. The leading console evidence is
-`Object3D.add: object not an instance ... undefined`. Commit
-`d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd` is therefore a recoverable intermediate fix, not a
-completed branch to integrate. The remaining stall is tracked under
-[issue #1](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues/1).
+| Artifact | SHA-256 |
+| --- | --- |
+| `Sprout-Hollow-Valley-Setup-1.2.12.exe` | `0FC8A9562CFB4ACEF88959DA1DB2E1977875DFE0D62EF522131B2DA3F343174D` |
+| `sprout-hollow-valley-1.2.12-full.nupkg` | `8A8E4959F79B3E286AE96746589C4D6F33191B777638854B5659DD1B0A95F5A3` |
+| `sprout-hollow-valley-1.2.12-delta.nupkg` | `4A69A68F76C5FDB6195823E607B49500EAC8405F953A897969BC8A97579F3967` |
+| `RELEASES` | `9C8FEF9F7658E311F8EA9586BE760016B469A8E1110DD424C6AB7276C89BFD8F` |
 
-## Implemented architecture
+The setup executable reported `NotSigned`, as required. Icon inspection found valid
+small 16×16 and standard 32×32 application icon sizes in the packaged executable.
 
-- `src/renderer3d/runtime.ts` and `src/renderer3d/farm-surface.ts` own the WebGL renderer, third-person player, camera-relative movement, gamepad/keyboard/pointer input, collision, streaming, frame loop, pause/resume, resize, and disposal.
-- `src/renderer3d/world/authored-valley-world.ts` renders the finite connected terrain, roads, river, eight regions and estates, saved estate plots, vegetation, lighting, and streamed structure cells.
-- `src/renderer3d/world/authored-structure-placements.ts` contains the complete 700-row exterior placement index. Each content ID maps one-to-one to its exact `InteriorGraph`, entry door, entry room, approach, collider, region, district, cell, pose, and real entrance. Cells are capped at five structures.
-- `src/renderer3d/interiors/` renders and operates multi-room/multi-floor interiors, real doors, stairs/elevators, stations, fixtures, restrooms, and hand-washing sequences.
-- `src/renderer3d/npcs/` presents the exact 240-NPC life state with deterministic placement, culling, collision targets, and authored local dialogue.
-- `src/game/valley3d-save.ts` provides the optional version-one 3D save section and fail-closed migration/defaulting for exterior pose, NPC life state, interiors, access progress, sanitation, estate farming, and factory production.
-- `src/game/estate-farming.ts`, `estate-farm-state.ts`, and `valley-plants.ts` add persistent 5×4 fields and three orchard positions to each of eight estates (160 field plots and 24 orchard positions), using all 500 crop and 250 orchard definitions through the canonical time, energy, weather, season, inventory, yield, quality, and economy rules.
-- `src/game/valley-factory-production.ts` validates and operates all 400 factories and 1,200 recipes with capability-matched deterministic queues, input/output storage, staffing readiness, cleanliness, inspection, maintenance, quality, collection, shipping, and station actions.
-- `.github/workflows/release.yml` is create-only: ordinary `main` updates do not publish; explicit version tags must be unused and match the manifest; tags are never moved and release assets are never replaced.
+## Remote evidence at the candidate baseline
 
-## Test inventory
+- CI run [32096476804](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32096476804)
+  completed successfully for `0f9d07494d2c079ec142709354a8d31105054027`.
+- Pages run [32096476843](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/32096476843)
+  completed successfully for the same commit.
+- The source tree has 40 `*.test.ts` files and 978 static `it` / `test` declarations.
+  Those declarations are an inventory, not a substitute for an executed result.
 
-The repository currently contains 38 `*.test.ts` files and 994 static `it`/`test` declarations.
-Static declarations are not a runtime pass count: parameterized cases can expand, conditional
-capture cases can skip, and none of these files was executed during the accelerated v1.2.9–v1.2.11
-feature passes.
+## Release-grade completeness gaps
 
-| File | Static declarations |
-|---|---:|
-| `tests/actions.test.ts` | 60 |
-| `tests/bands.test.ts` | 6 |
-| `tests/buildings.test.ts` | 23 |
-| `tests/crops.test.ts` | 18 |
-| `tests/economy.test.ts` | 49 |
-| `tests/engine3d/assets.test.ts` | 12 |
-| `tests/engine3d/input.test.ts` | 8 |
-| `tests/engine3d/world-streaming.test.ts` | 8 |
-| `tests/factories.test.ts` | 34 |
-| `tests/hay.test.ts` | 12 |
-| `tests/history.test.ts` | 61 |
-| `tests/i18n.test.ts` | 29 |
-| `tests/integration.test.ts` | 33 |
-| `tests/interiors.test.ts` | 48 |
-| `tests/livestock.test.ts` | 40 |
-| `tests/market.test.ts` | 54 |
-| `tests/motion.test.ts` | 7 |
-| `tests/placement.test.ts` | 35 |
-| `tests/production.test.ts` | 34 |
-| `tests/progression.test.ts` | 37 |
-| `tests/reachable.test.ts` | 10 |
-| `tests/reduced-motion.test.ts` | 11 |
-| `tests/regex.test.ts` | 67 |
-| `tests/rng.test.ts` | 17 |
-| `tests/save.test.ts` | 15 |
-| `tests/search-catalogue.test.ts` | 14 |
-| `tests/shop.test.ts` | 20 |
-| `tests/shots.test.ts` | 2 |
-| `tests/site-palette.test.ts` | 2 |
-| `tests/site.test.ts` | 7 |
-| `tests/species.test.ts` | 17 |
-| `tests/state.test.ts` | 23 |
-| `tests/store.test.ts` | 32 |
-| `tests/tabmodel.test.ts` | 52 |
-| `tests/time.test.ts` | 15 |
-| `tests/tokens.test.ts` | 20 |
-| `tests/trees.test.ts` | 26 |
-| `tests/unlocks.test.ts` | 36 |
+The renderer repair is complete as a source and installed-artifact recovery, but a
+release-grade shutdown is not yet complete. The next owner must retain these facts:
 
-### Current command verdicts
+1. Run and record the complete current local suite against the exact release commit.
+   Do not infer an expanded pass count from the 978 static declarations.
+2. Run the declared build and release checks, including `npm run check:build`,
+   `npm run build:site`, the real Squirrel packaging route, the committed line counter,
+   and a fresh installed-artifact launch against the exact release artifact.
+3. `docs/VALLEY-COMPLETENESS.md` still identifies 61 evidence rows as planned and has
+   no complete row. It lacks installed-artifact traversal and capture proof for all 700
+   structures, their rooms, doors, stations, sanitation routes, estate farming,
+   factory production, NPC behavior, and save/reload cycles.
+4. The project does not yet have a runnable aggregate harness for the complete
+   700-structure traversal, long-run simulation, and performance evidence required by
+   `PLAN.md`. Do not represent a source-level or single-Farm launch as that evidence.
+5. The release workflow validates Squirrel artifact publication, but it does not run the
+   full test suite, site build, installed-artifact interaction, or complete capture
+   matrix. Its release notes also need verified workflow timing and the required release
+   metadata before a release can be called fully proven.
+6. The root one-click build scripts still need a fresh-machine bootstrap proof: they
+   currently depend on Node/npm being available on `PATH`, and their silent-mode and
+   installer-integrity contracts need end-to-end verification.
+7. `docs/VALLEY-LAUNCH.md` contains historical installer evidence; update it when the
+   final release artifact and release identifier are verified rather than guessing a
+   future release URL.
 
-- `npm test`: **not run against the current v1.2.11 tree**. The older claim in issue #1 (997 passed and two capture cases skipped at commit `f51997e`) is not evidence for the current source.
-- `npm run typecheck`: passed as part of the exact v1.2.11 `npm run package` path at `63b377ff81a4a91d0f46cfbc359d9dae7e192b33`; it was not launched separately.
-- `npm run build:main`, `npm run build:renderer`, and `npm run build:site`: passed in tag CI run 32073833481 at the exact release commit.
-- `npm run package`: passed locally at the exact release commit and in release run 32073833423.
-- `npm run shots` / HuiShots: not run during the accelerated passes.
+These are evidence and completeness gaps, not permission to weaken validation or to
+call unfinished coverage complete.
 
-### Built-artifact coverage
+## Safe next steps
 
-None of the 38 Vitest files launches the installed Squirrel application. `tests/shots.test.ts`
-drives source rendering and `tests/site.test.ts` checks source/committed site assets; neither proves
-the packaged Electron runtime. The cheap-headless installed interaction described above is the only
-current built-artifact launch evidence, and it found the renderer-import failure. Automated
-installed traversal of all 700 structures, every room/door/station, sanitation, all estate plots,
-all 400 factory queues, save/reload, and the exact 240-NPC simulation is still absent.
+1. Re-inventory every branch, linked working tree, stash, tag, release, and divergence
+   immediately before any integration or cleanup action.
+2. Preserve and integrate the completed documentation and verification lanes without
+   discarding independent work.
+3. Build `v1.2.12` from its exact final `main` commit, inspect every Squirrel artifact,
+   and repeat the installed headless Farm launch with that artifact.
+4. Create one new immutable `v1.2.12` tag and one non-draft GitHub Release only after
+   the final commit, hashes, notes, assets, and release workflow evidence are ready.
+   Never overwrite `v1.2.11` or recycle its tag or assets.
+5. Verify the published tag, commit, assets, downloads, release notes, and final CI
+   result through the GitHub CLI.
+6. Do not delete any branch, linked working tree, directory, or stash until every source
+   tip is proven merged into the released `main`, all work is committed and pushed, and
+   the current user explicitly authorizes that irreversible cleanup.
 
-## Open boundaries and next actions
+## Product architecture that remains in scope
 
-All items remain tracked by [issue #1](https://github.com/Ding-Ding-Projects/sprout-hollow-valley/issues/1):
+- `src/renderer3d/` owns the third-person Three.js Farm runtime, input, camera, world
+  streaming, interiors, collisions, NPC presentation, and disposal.
+- `src/content/` owns the typed 5,000-definition catalogue, persistent NPC definitions,
+  structure definitions, factory capability mapping, and validation.
+- `src/game/` owns persistent estate farming, orchard state, factory production, and the
+  versioned 3D save section.
+- `site/` is a responsive GitHub Pages landing, documentation, status, and download
+  surface. It is not a playable substitute for the installed application.
 
-1. Trace and fix the post-catalogue 3D startup stall led by the `Object3D.add` diagnostic on `fix/v1211-installed-launch`; do not merge intermediate commit `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd` as a complete launch repair.
-2. Package and reinstall the completed fix, require both the Farm window and `application window loaded`, and obtain a reliable renderer-DOM or semantic-state probe before integrating it. A later release must use a new unused version and must not replace v1.2.11 assets.
-3. Run the current 38-file Vitest suite and record its exact expanded pass/fail/skip count at the commit tested.
-4. Add installed-artifact automation for the 700-structure traversal, sanitation, estate-farming, factory-production, NPC, and save/reload contracts.
-5. Produce genuine current-build captures only after the renderer works; existing committed images predate the live Valley runtime and are not evidence for the new 3D implementation.
-6. Reconcile `docs/VALLEY-COMPLETENESS.md`, whose evidence rows still describe several Valley contracts as planned because the required automated interaction/capture evidence has not been produced.
-7. Review the five dependency advisories reported by locked installation. No dependency remediation was attempted during the feature passes.
-8. Preserve the historical record that pre-v1.2.9 publishing moved/replaced `v1.2.8`; the create-only workflow prevents recurrence but does not rewrite that published history.
+## Handoff ownership notes
 
-## Repository state at handoff drafting
-
-- Default branch and GitHub `main`: `63b377ff81a4a91d0f46cfbc359d9dae7e192b33` before the active installed-launch fix is integrated.
-- The feature and release branches listed by `git worktree list` are already ancestors of `main`, except `fix/v1211-installed-launch` at `d1ea96aa4e3d4e5877b8e591f3c56012ce5bcfcd`. That commit fixes catalogue validation and packages successfully, but its installed renderer still stalls before the load boundary; the branch is deliberately retained and not integrated as complete.
-- No stash exists.
-- The primary worktree is clean apart from this newly created handoff file.
-- Worktree and branch cleanup must happen only after the active fix and this handoff are committed, integrated, pushed, and proven ancestors of the final `main`.
+This handoff update and the newly added `ROADMAP.md` are documentation-only work. They
+must be merged with the other completed lanes before any release decision. Re-run
+`git worktree list --porcelain`, `git branch --all --verbose --no-abbrev`, and
+`git stash list` at resumption rather than relying on a static branch list in this file.

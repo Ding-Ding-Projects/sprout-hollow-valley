@@ -31,6 +31,7 @@ import {
   setFunny,
   setLang,
   t,
+  tIn,
 } from '../src/shell/core/i18n'
 import type { FunnyLevel, StringKey } from '../src/shell/core/i18n'
 
@@ -204,6 +205,19 @@ describe('t()', () => {
     setFunny({ en: 1 })
     expect(t('common.more', { count: 4 })).toBe('4 more')
     expect(t('common.more', { count: '4' })).toBe('4 more')
+  })
+
+  it('renders a requested language without changing current language state or notifying listeners', () => {
+    setLang('en')
+    const seen = vi.fn()
+    const off = onLangChange(seen)
+
+    const sample = tIn('yue', 'common.cancel')
+
+    expect(sample).not.toBe(t('common.cancel'))
+    expect(getLang()).toBe('en')
+    expect(seen).not.toHaveBeenCalled()
+    off()
   })
 
   it('leaves an unsupplied placeholder visible rather than blanking the fact', () => {

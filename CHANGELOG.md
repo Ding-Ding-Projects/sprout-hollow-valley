@@ -14,6 +14,9 @@ build time, so what you see in the app is what is in the repository.
 
 ### Fixed
 
+- Squirrel.Windows packaging now keeps executable editing disabled alongside the existing unsigned
+  release controls, so the installer path never invokes a signing-capable executable-edit step.
+
 - Empty weather-hook registries now skip Three.js's zero-argument `Object3D.add()` call, which
   previously emitted an undefined-child diagnostic during the initial 3D Farm startup path.
 - World-cell and interior scene mounts now reject an invalid Three.js root with a source-labelled

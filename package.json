@@ -58,7 +58,7 @@
       "target": [
         "squirrel"
       ],
-      "signAndEditExecutable": true,
+      "signAndEditExecutable": false,
       "signExecutable": false,
       "verifyUpdateCodeSignature": false
     },

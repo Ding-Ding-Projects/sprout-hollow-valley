@@ -7,6 +7,23 @@
 :root {
   color-scheme: light;
 
+  /* The canonical valley palette. These values are kept in step with the game so
+     landing-page semantic roles and captures share one recognizable visual language. */
+  --ink: #1b1a24;
+  --shadow: #2f2b3d;
+  --bark: #4a3a34;
+  --soil: #6b4a34;
+  --soil-wet: #43291f;
+  --grass: #4f7a3a;
+  --grass-lit: #6d9c46;
+  --leaf: #2f5c33;
+  --parchment: #e8d9b0;
+  --cream: #f6efd8;
+  --lantern: #f2a541;
+  --berry: #c1504a;
+  --sky: #8fb8c9;
+  --dusk: #5c5470;
+
   --soil-950: #2d2119;
   --soil-900: #3b2a20;
   --soil-700: #654630;
@@ -32,24 +49,24 @@
   --error-700: #8b241d;
   --error-100: #ffdad5;
 
-  --surface: var(--cream-50);
+  --surface: var(--cream);
   --surface-container-low: #fffdf8;
   --surface-container: var(--cream-100);
   --surface-container-high: var(--cream-200);
   --surface-container-highest: var(--cream-300);
-  --on-surface: var(--soil-950);
+  --on-surface: var(--ink);
   --on-surface-muted: #65574d;
-  --primary: var(--leaf-800);
-  --on-primary: #ffffff;
-  --primary-container: var(--leaf-100);
-  --on-primary-container: var(--leaf-900);
-  --secondary: var(--soil-700);
-  --on-secondary: #ffffff;
-  --secondary-container: var(--soil-100);
-  --on-secondary-container: var(--soil-900);
-  --outline: #76695e;
+  --primary: var(--leaf);
+  --on-primary: var(--cream);
+  --primary-container: var(--grass-lit);
+  --on-primary-container: var(--ink);
+  --secondary: var(--soil);
+  --on-secondary: var(--cream);
+  --secondary-container: var(--parchment);
+  --on-secondary-container: var(--ink);
+  --outline: var(--bark);
   --outline-variant: #cfc2b5;
-  --focus: #684000;
+  --focus: var(--lantern);
 
   --elevation-1: 0 1px 2px rgb(45 33 25 / 0.14), 0 2px 6px rgb(45 33 25 / 0.08);
   --elevation-2: 0 2px 5px rgb(45 33 25 / 0.16), 0 8px 24px rgb(45 33 25 / 0.1);
@@ -65,7 +82,7 @@
   --measure: 68ch;
   --page-gutter: clamp(1rem, 4vw, 2.5rem);
   --section-space: clamp(3.5rem, 8vw, 6.5rem);
-  --target-size: 2.75rem;
+  --target-size: max(2.75rem, 44px);
 
   font-family:
     system-ui,
@@ -498,6 +515,36 @@ main {
   font-size: 0.85rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.capture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+}
+
+.capture-card {
+  min-inline-size: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-medium);
+  background: var(--surface-container-low);
+  box-shadow: var(--elevation-1);
+}
+
+.capture-card img {
+  inline-size: 100%;
+  aspect-ratio: 1280 / 704;
+  object-fit: cover;
+  background: var(--ink);
+}
+
+.capture-card figcaption {
+  color: var(--on-surface-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 0.9rem 1rem 1rem;
 }
 
 .privacy-line {

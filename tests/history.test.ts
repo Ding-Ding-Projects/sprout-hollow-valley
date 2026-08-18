@@ -436,8 +436,8 @@ describe('exportAs json', () => {
     const text = exporter.exportAs('json', { history: NASTY, now: 0 })
 
     const parsed = JSON.parse(text) as Record<string, unknown>
-    expect(parsed.app).toBe('sprout-hollow')
-    expect(parsed.kind).toBe('shell-export')
+    expect(parsed.app).toBe('sprout-hollow-valley')
+    expect(parsed.kind).toBe('valley-shell-export')
     expect(parsed.version).toBeTypeOf('number')
     expect(parsed.exportedAt).toBe('1970-01-01T00:00:00.000Z')
     expect(parsed.sections).toEqual(['settings', 'appearance', 'history'])
@@ -493,7 +493,7 @@ describe('exportAs json', () => {
   it('offers the same bundle as an object', async () => {
     const { exporter } = await fresh()
     const bundle = exporter.buildBundle({ sections: ['history'], history: NASTY, now: 0 })
-    expect(bundle.app).toBe('sprout-hollow')
+    expect(bundle.app).toBe('sprout-hollow-valley')
     expect(bundle.data.history).toEqual(NASTY)
   })
 })
@@ -588,7 +588,7 @@ describe('exportAs markdown', () => {
     const { exporter } = await fresh()
     const text = exporter.exportAs('markdown', { history: NASTY, now: 0 })
 
-    expect(text.startsWith('# Sprout Hollow — export')).toBe(true)
+    expect(text.startsWith('# Sprout Hollow Valley — export')).toBe(true)
     expect(text).toContain('Exported 1970-01-01T00:00:00.000Z')
     expect(text).toContain('## Settings')
     expect(text).toContain('## Appearance')
@@ -672,10 +672,10 @@ describe('the export surface', () => {
   it('suggests a sortable filename built from facts', async () => {
     const { exporter } = await fresh()
     expect(exporter.suggestFilename('csv', { sections: ['history'], now: 0 })).toBe(
-      'sprout-hollow-history-1970-01-01-00-00.csv',
+      'sprout-hollow-valley-history-1970-01-01-00-00.csv',
     )
     expect(exporter.suggestFilename('json', { now: 0 })).toBe(
-      'sprout-hollow-all-1970-01-01-00-00.json',
+      'sprout-hollow-valley-all-1970-01-01-00-00.json',
     )
   })
 
@@ -730,6 +730,7 @@ describe('importJson', () => {
       ['not json', 'not-json'],
       ['[1,2,3]', 'not-object'],
       ['{"app":"some-other-app","data":{}}', 'foreign'],
+      ['{"app":"sprout-hollow","data":{}}', 'foreign'],
       ['{"nothing":"useful"}', 'no-sections'],
     ]
     for (const [text, code] of cases) {
@@ -775,7 +776,7 @@ describe('importJson', () => {
   it('hands the game save back rather than writing it, because the farm is not the shell’s', async () => {
     const { exporter } = await fresh()
     const result = await exporter.importJson(
-      JSON.stringify({ app: 'sprout-hollow', data: { save: { seed: 11 }, settings: {} } }),
+      JSON.stringify({ app: 'sprout-hollow-valley', data: { save: { seed: 11 }, settings: {} } }),
     )
     expect(result.ok).toBe(true)
     if (!result.ok) return

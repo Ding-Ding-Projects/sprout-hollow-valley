@@ -16,6 +16,8 @@ build time, so what you see in the app is what is in the repository.
   previously emitted an undefined-child diagnostic during the initial 3D Farm startup path.
 - World-cell and interior scene mounts now reject an invalid Three.js root with a source-labelled
   error before forwarding it into the renderer.
+- Repeated active-tab notifications no longer restart an already visible Farm surface, preventing
+  the initial render callback from being starved by redundant visibility and resize work.
 - Installed startup now completes the fail-closed 5,000-definition content registration instead
   of aborting the renderer with 2,240 generated-data validation issues. Taxonomy facets remain
   unique, product and recipe unlocks cannot precede their prerequisites, every installed factory

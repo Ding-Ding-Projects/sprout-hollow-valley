@@ -11,7 +11,7 @@ import type {
   SchedulePlan,
   StructureKind,
 } from './types'
-import { structureDefinitionId } from './catalog'
+import { getStructureDefinition, structureDefinitionId } from './catalog'
 
 const authoredIdentity = (
   displayName: string,
@@ -497,6 +497,28 @@ const EMPLOYMENT_PROFILES = [
 
 const SKILL_LEVELS = [1, 2, 3, 4, 5] as const
 
+/**
+ * Finds a stable authored workplace that actually carries the role the generated NPC will use.
+ *
+ * Employment assignments are part of the persisted life snapshot, so choosing an arbitrary
+ * numbered building or factory can never be allowed to point an NPC at a station it does not
+ * contain. Start from the deterministic cohort-derived number, then walk the finite authored
+ * catalogue in a stable order until the requested station role is available.
+ */
+const compatibleStructureDefinitionId = (
+  kind: StructureKind,
+  preferredNumber: number,
+  stationRoleId: string,
+): string => {
+  const count = kind === 'building' ? 300 : 400
+  for (let offset = 0; offset < count; offset += 1) {
+    const number = ((preferredNumber - 1 + offset) % count) + 1
+    const id = structureDefinitionId(kind, number)
+    if (getStructureDefinition(id)?.stationRoleIds.includes(stationRoleId)) return id
+  }
+  throw new Error(`No ${kind} structure exposes required station role ${stationRoleId}.`)
+}
+
 const makeEmploymentAssignment = (npcIndex: number): EmploymentAssignment => {
   const profileIndex = npcIndex % EMPLOYMENT_PROFILES.length
   const profile = EMPLOYMENT_PROFILES[profileIndex]
@@ -516,7 +538,11 @@ const makeEmploymentAssignment = (npcIndex: number): EmploymentAssignment => {
 
   return {
     roleId: profile.roleId,
-    structureDefinitionId: structureDefinitionId(structureKind, definitionNumber),
+    structureDefinitionId: compatibleStructureDefinitionId(
+      structureKind,
+      definitionNumber,
+      profile.stationRoleId,
+    ),
     stationRoleId: profile.stationRoleId,
     structureInstanceId: null,
   }

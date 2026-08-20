@@ -2,6 +2,21 @@
 
 Updated: 2026-08-18
 
+## Fresh-host build bootstrap
+
+The root `build.bat` and `build-installer.bat` routes now call one shared
+`download-dependencies.bat` entry point. It prepares a project-local Node.js
+22.23.2 runtime from the canonical archive only after verifying the committed
+SHA-256, then both routes use the committed npm lock. The focused contract test
+and a cold dependency-fetch run are the directly related evidence; installed
+application lifecycle proof remains separate.
+
+On 2026-08-20, `npm run test:dependency-bootstrap` passed, the cold fetch
+verified SHA-256
+`1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97`,
+prepared Node.js v22.23.2, and `build.bat /s` completed type checking plus the
+main and renderer builds. No installer was executed.
+
 ## Published release baseline
 
 The published `v1.2.12` baseline is

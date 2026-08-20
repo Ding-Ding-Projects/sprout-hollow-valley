@@ -6,17 +6,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-where node >nul 2>&1
-if errorlevel 1 (
-  >&2 echo ERROR: Node.js was not found on PATH. Install Node.js 22 or newer and try again.
-  exit /b 1
-)
-
-where npm >nul 2>&1
-if errorlevel 1 (
-  >&2 echo ERROR: npm was not found on PATH. Install npm and try again.
-  exit /b 1
-)
+set "SHV_ROOT=%~dp0"
+call "%SHV_ROOT%download-dependencies.bat" /s
+if errorlevel 1 exit /b %ERRORLEVEL%
+set "PATH=%SHV_ROOT%.tools\node-v22.23.2-win-x64;%PATH%"
 
 if not exist "package-lock.json" (
   >&2 echo ERROR: package-lock.json is required for a reproducible installer build.

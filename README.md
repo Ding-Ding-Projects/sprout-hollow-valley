@@ -201,7 +201,9 @@ To build the application without launching it, run:
 .\build.bat
 ```
 
-`build.bat` checks for Node.js, npm, and `package-lock.json`, installs the locked dependencies
+`build.bat` calls `download-dependencies.bat`, which downloads the pinned Node.js 22.23.2
+portable archive from nodejs.org, verifies its committed SHA-256, and reuses the project-local
+`.tools` copy. It then checks `package-lock.json`, installs the locked dependencies
 with `npm ci --no-audit`, runs `npm run build`, and reports the `dist/` and `dist-electron/`
 output paths. It returns a nonzero exit code if a prerequisite, dependency install, or build
 step fails.
@@ -212,7 +214,7 @@ To build the unsigned Squirrel.Windows installer and update files, run:
 .\build-installer.bat
 ```
 
-`build-installer.bat` performs the same prerequisite and locked-dependency checks, runs
+`build-installer.bat` uses the same digest-verified dependency fetcher and locked-dependency checks, runs
 `npm run package`, reads the current version from `package.json`, and succeeds only when the
 versioned installer, full NuGet package, and `RELEASES` manifest exist and are nonempty under
 `release/squirrel-windows/`.

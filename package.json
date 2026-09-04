@@ -28,6 +28,7 @@
     "shots": "node scripts/render-shots.mjs",
     "count": "node scripts/count-lines.mjs",
     "check:build": "node scripts/check-build-config.mjs",
+    "test:dependency-bootstrap": "node scripts/test-dependency-bootstrap.mjs",
     "dish": "node scripts/dish-name.mjs"
   },
   "devDependencies": {

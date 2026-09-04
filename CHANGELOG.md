@@ -10,6 +10,12 @@ build time, so what you see in the app is what is in the repository.
 
 ## [Unreleased]
 
+### Changed
+
+- Added a silent-capable root dependency fetcher with a committed Node.js 22.23.2 archive digest,
+  and routed both root build scripts through the same project-local portable runtime before
+  `npm ci`.
+
 ## [1.2.12] - 2026-08-17
 
 ### Fixed

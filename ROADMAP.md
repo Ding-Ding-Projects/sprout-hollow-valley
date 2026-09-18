@@ -66,7 +66,7 @@ unchecked item remains work, even when the surrounding source has been implement
 - [ ] Perform irreversible branch, working-tree, and stash cleanup only after final
   release and ancestry proof plus current explicit user authorization.
 
-## Primary Oak Kay closeout, 2026-09-18
+## Primary repository closeout, 2026-09-18
 
 - [x] Verify that no linked working tree, stash, unmerged index entry, conflict
   marker, or recoverable local file requires a preservation commit.

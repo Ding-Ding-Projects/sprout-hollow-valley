@@ -71,6 +71,8 @@ unchecked item remains work, even when the surrounding source has been implement
 - [x] Verify that no linked working tree, stash, unmerged index entry, conflict
   marker, or recoverable local file requires a preservation commit.
 - [x] Verify the current `main` ref on the origin with `git ls-remote`.
+- [x] Commit the closeout records as `11e1f19a48ce14cfd2e5f977acfa43e92244b587`,
+  dew them to `origin/main`, and verify the exact remote ref.
 - [x] Preserve the fetched upstream divergence without merging unrelated source
   lineage into the primary repository.
 - [ ] Create an external archive before any future removal. This remains

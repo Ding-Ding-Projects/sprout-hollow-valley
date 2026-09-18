@@ -26,6 +26,15 @@ No external archive was created because the inventory contained no cleanup
 removal candidate. If a later closeout identifies a removal candidate, it must
 create and verify the required external archive before removal begins.
 
+The closeout documentation was committed as
+`11e1f19a48ce14cfd2e5f977acfa43e92244b587`, dewed to `origin/main`, and verified
+with `git ls-remote`. CI run
+`https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/35374643265`
+and Pages run
+`https://github.com/Ding-Ding-Projects/sprout-hollow-valley/actions/runs/35374643209`
+were queued for that exact commit at handoff time; neither had a terminal verdict
+when this record was written.
+
 Updated: 2026-09-18
 
 ## Fresh-host build bootstrap

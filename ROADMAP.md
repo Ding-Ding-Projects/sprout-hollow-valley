@@ -1,6 +1,6 @@
 # Sprout Hollow Valley roadmap
 
-Updated: 2026-08-18
+Updated: 2026-09-18
 
 This roadmap records factual delivery state. A checked item is evidence-backed; an
 unchecked item remains work, even when the surrounding source has been implemented.
@@ -55,9 +55,25 @@ unchecked item remains work, even when the surrounding source has been implement
 
 ## Repository closure conditions
 
-- [ ] Re-inventory all branches, linked working trees, stashes, tags, releases, and
-  divergence immediately before closure.
+- [x] Re-inventory all branches, linked working trees, stashes, tags, releases, and
+  divergence immediately before closure. On 2026-09-18, the primary checkout had
+  only `main`, no linked working trees, no stashes, and no conflict state. `main`
+  and `origin/main` were both `c562aa31e4bea7865d9df6ffee0ea8dfdaf9da50`.
+  `upstream/main` was fetched but retained as a separate diverged lineage at
+  `e6f317a9c9cefc4e80dcd31749834ae1d2b38a46` with a `132 18` split.
 - [ ] Integrate every completed lane into `main`, preserve any unmerged work, and prove
   each retained source commit is present on the published `main`.
 - [ ] Perform irreversible branch, working-tree, and stash cleanup only after final
   release and ancestry proof plus current explicit user authorization.
+
+## Primary Oak Kay closeout, 2026-09-18
+
+- [x] Verify that no linked working tree, stash, unmerged index entry, conflict
+  marker, or recoverable local file requires a preservation commit.
+- [x] Verify the current `main` ref on the origin with `git ls-remote`.
+- [x] Preserve the fetched upstream divergence without merging unrelated source
+  lineage into the primary repository.
+- [ ] Create an external archive before any future removal. This remains
+  pending because this inventory identified no removal candidate.
+- [ ] Remove only proven redundant linked working trees, branches, or stashes in a
+  future closeout after archive, ownership, ancestry, and remote-ref proof.

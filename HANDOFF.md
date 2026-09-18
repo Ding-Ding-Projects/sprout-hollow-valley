@@ -1,6 +1,32 @@
 # Sprout Hollow Valley handoff
 
-Updated: 2026-08-18
+## Repository closeout inventory
+
+Updated: 2026-09-18T13:24:40-04:00
+
+The primary checkout is `C:\Users\cntow\Documents\GitHub\sprout-hollow-valley`.
+The checked-out `main` commit is `c562aa31e4bea7865d9df6ffee0ea8dfdaf9da50`, and
+`origin/main` resolves to the same commit. The ref was verified with
+`git ls-remote origin refs/heads/main`.
+
+The closeout inventory found one checkout, one local branch (`main`), one origin
+branch (`main`), no linked checkouts, no stashes, no unmerged index entries, no
+conflict markers, and no recoverable uncommitted files. There were therefore no
+preservation commits, preservation branches, or safe redundant checkouts to
+remove.
+
+The fetched `upstream/main` resolves to
+`e6f317a9c9cefc4e80dcd31749834ae1d2b38a46` and is a separate diverged line:
+`origin/main...upstream/main` is `132 18`, with neither tip an ancestor of the
+other. It is retained as a fetched reference and deliberately not merged because
+this closeout owns the primary repository only and must not import unrelated source
+lineage.
+
+No external archive was created because the inventory contained no cleanup
+removal candidate. If a later closeout identifies a removal candidate, it must
+create and verify the required external archive before removal begins.
+
+Updated: 2026-09-18
 
 ## Fresh-host build bootstrap
 
